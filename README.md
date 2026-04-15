@@ -72,6 +72,7 @@ https://developer.vimeo.com/apps/new
 - Adjust view and embed privacy options 
 
   - See [this vimeo page](https://developer.vimeo.com/api/reference/videos#edit_video) for privacy options: `privacy.view` and `privacy.embed`
+  - Vimeo privacy options like Unlisted and Hide from Vimeo require a paid Vimeo plan. Public is the default.
 
 - You should now be able to upload videos from the Discourse topic composer directly to Vimeo
 
