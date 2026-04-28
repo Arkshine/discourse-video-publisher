@@ -16,6 +16,11 @@ body.vimeo-oauth-callback {
   }
 }
 
+.d-icon-video-upload {
+  font-size: var(--font-up-2);
+  top: 1px;
+}
+
 .video-upload-modal {
   .d-modal__footer {
     gap: 1rem;

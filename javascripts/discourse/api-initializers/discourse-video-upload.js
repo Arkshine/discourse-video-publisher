@@ -15,7 +15,7 @@ class VideoUploadInit {
           title: themePrefix("upload.video"),
           id: "video-upload",
           group: "insertions",
-          icon: "video",
+          icon: "video-upload",
           perform: () => this.modal.show(VideoUpload),
         });
       });
