@@ -1,5 +1,5 @@
 import ResumableUploadClient from "../client";
-import { sleep, UploadVideoError } from "../util";
+import { CancelledError, sleep, UploadVideoError } from "../util";
 
 export default class VimeoUploadClient extends ResumableUploadClient {
   static defaults = {
@@ -159,6 +159,7 @@ export default class VimeoUploadClient extends ResumableUploadClient {
     interval = 5000,
     timeout = 10 * 60 * 1000,
     onStatus = null,
+    shouldCancel = null,
   } = {}) {
     const startedAt = Date.now();
 
@@ -188,10 +189,29 @@ export default class VimeoUploadClient extends ResumableUploadClient {
       }
 
       await sleep(interval);
+
+      if (typeof shouldCancel === "function" && shouldCancel()) {
+        throw new CancelledError();
+      }
     }
   }
 
   getResult() {
     return this.videoUri;
+  }
+
+  async deleteVideo() {
+    if (!this.videoUri) {
+      return;
+    }
+
+    await this.xhr({
+      method: "DELETE",
+      url: `${this.apiUrl}${this.videoUri}`,
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        Accept: this.accept,
+      },
+    });
   }
 }

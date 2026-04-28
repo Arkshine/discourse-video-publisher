@@ -1,3 +1,21 @@
+body.vimeo-oauth-callback {
+  > * {
+    display: none !important;
+  }
+
+  &::after {
+    content: "Authenticating with Vimeo…";
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    background: var(--secondary);
+    color: var(--primary);
+  }
+}
+
 .video-upload-modal {
   .d-modal__footer {
     gap: 1rem;

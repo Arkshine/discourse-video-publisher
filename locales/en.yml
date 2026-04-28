@@ -1,4 +1,15 @@
 en:
+  theme_metadata:
+    settings:
+      vimeo_upload_enabled: "Enable upload to Vimeo"
+      vimeo_oauth_client_id: "Vimeo OAuth Client ID. When set, users authenticate to their own Vimeo account via a popup. Leave empty to use the static access token below."
+      vimeo_api_access_token: "Vimeo API Access Token. Used only when Vimeo OAuth Client ID above is empty."
+      vimeo_default_view_privacy: "Check privacy.view options on this page: https://developer.vimeo.com/api/reference/videos#edit_video"
+      vimeo_default_embed_privacy: "Check privacy.embed options on this page: https://developer.vimeo.com/api/reference/videos#edit_video"
+      youtube_upload_enabled: "Enable upload to YouTube"
+      youtube_api_client_id: "YouTube API Client ID"
+      youtube_default_view_privacy: "Default privacy for videos uploaded to YouTube"
+
   upload:
     video: "Upload a video"
     vimeo: "Upload to Vimeo"
@@ -6,6 +17,8 @@ en:
     choose-provider: "Choose a destination"
     pause: "Pause"
     resume: "Resume"
+    cancel: "Cancel"
+    cancel-confirm: "This will delete the video from the provider. Are you sure?"
   provider:
     title: "Destination"
     vimeo: "Vimeo"
@@ -17,6 +30,7 @@ en:
     paused: "Paused"
     transcoding: "Transcoding video"
     authenticating: "Authenticating"
+    cancelling: "Cancelling"
     error:
       upload: "Error uploading video"
   validation:
@@ -50,6 +64,12 @@ en:
     vimeo_upload_failed: "Vimeo upload failed."
     vimeo_upload_link_missing: "Missing Vimeo upload link in response."
     vimeo_video_uri_missing: "No Vimeo video URI is available."
+    vimeo_oauth_client_id_missing: "Vimeo OAuth client ID is missing."
+    vimeo_auth_popup_blocked: "Vimeo auth popup was blocked. Allow popups for this site and try again."
+    vimeo_auth_popup_closed: "Vimeo auth was closed before completing."
+    vimeo_auth_timeout: "Vimeo auth timed out. Please try again."
+    vimeo_auth_no_token: "No access token returned by Vimeo."
+    vimeo_auth_state_mismatch: "Vimeo auth response did not match the request."
     youtube_client_id_missing: "YouTube API client ID is missing."
     youtube_processing_failed: "YouTube processing failed: %{status}"
     youtube_status_check_failed: "Failed to check YouTube video status."

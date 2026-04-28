@@ -10,6 +10,7 @@ import icon from "discourse/helpers/d-icon";
 import { eq } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 import { requestYoutubeAccessToken } from "../../lib/upload-video/google-auth";
+import { clearVimeoToken, requestVimeoAccessToken } from "../../lib/upload-video/vimeo-auth";
 import {
   buildVimeoMetadata,
   buildYoutubeMetadata,
@@ -17,7 +18,7 @@ import {
 } from "../../lib/upload-video/metadata";
 import VimeoUploadClient from "../../lib/upload-video/provider/vimeo";
 import YouTubeUploadClient from "../../lib/upload-video/provider/youtube";
-import { uploadErrorMessage } from "../../lib/upload-video/util";
+import { CancelledError, uploadErrorMessage } from "../../lib/upload-video/util";
 
 const STATUS_POLLING_INTERVAL_MILLIS = 10000;
 
@@ -34,6 +35,7 @@ const FORM_FIELDS = [
 export default class VideoUpload extends Component {
   @service appEvents;
   @service currentUser;
+  @service dialog;
 
   @tracked uploadProgress = 0;
   @tracked isAuthing = false;
@@ -41,9 +43,11 @@ export default class VideoUpload extends Component {
   @tracked isProcessing = false;
   @tracked isPaused = false;
   @tracked uploadError = null;
+  @tracked isCancelling = false;
   @tracked selectedProvider = this.defaultProvider;
 
   uploader = null;
+  cancelRequested = false;
 
   privacy = settings.youtube_default_view_privacy;
   provider = this.defaultProvider;
@@ -61,6 +65,7 @@ export default class VideoUpload extends Component {
       this.isUploading ||
       this.isProcessing ||
       this.isPaused ||
+      this.isCancelling ||
       this.uploadError
     );
   }
@@ -219,6 +224,18 @@ export default class VideoUpload extends Component {
     this.uploadError = uploadErrorMessage(error);
   }
 
+  resetUpload() {
+    this.uploadProgress = 0;
+    this.isAuthing = false;
+    this.isUploading = false;
+    this.isProcessing = false;
+    this.isPaused = false;
+    this.isCancelling = false;
+    this.uploadError = null;
+    this.cancelRequested = false;
+    this.uploader = null;
+  }
+
   @action
   pauseUpload() {
     this.isPaused = true;
@@ -229,6 +246,24 @@ export default class VideoUpload extends Component {
   resumeUpload() {
     this.isPaused = false;
     this.uploader?.unpause();
+  }
+
+  @action
+  async cancelUpload() {
+    if (this.isCancelling) {
+      return;
+    }
+
+    const confirmed = await this.dialog.yesNoConfirm({
+      message: i18n(themePrefix("upload.cancel-confirm")),
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.isCancelling = true;
+    this.cancelRequested = true;
   }
 
   @action
@@ -275,11 +310,17 @@ export default class VideoUpload extends Component {
       });
 
       this.uploader = uploader;
-      const id = await uploader.upload();
+      await uploader.upload();
+
+      if (this.cancelRequested) {
+        throw new CancelledError();
+      }
 
       this.startProcessing();
 
-      const video = await uploader.waitForYoutubeProcessing(accessToken, id);
+      const video = await uploader.waitForYoutubeProcessing(accessToken, {
+        shouldCancel: () => this.cancelRequested,
+      });
 
       this.finishProcessing();
 
@@ -289,6 +330,15 @@ export default class VideoUpload extends Component {
       );
       this.closeUploadModal();
     } catch (error) {
+      if (error?.cancelled) {
+        try {
+          await this.uploader?.deleteVideo();
+        } catch (_) {
+          // ignore delete failure, still reset
+        }
+        this.resetUpload();
+        return;
+      }
       this.failUpload(error);
     } finally {
       this.isAuthing = false;
@@ -297,11 +347,31 @@ export default class VideoUpload extends Component {
 
   @action
   async vimeoUpload(data) {
+    let token;
+
+    if (settings.vimeo_oauth_client_id) {
+      try {
+        this.isAuthing = true;
+        this.uploadError = null;
+        token = await requestVimeoAccessToken({
+          clientId: settings.vimeo_oauth_client_id,
+          userId: this.currentUser.id,
+        });
+      } catch (error) {
+        this.failUpload(error);
+        return;
+      } finally {
+        this.isAuthing = false;
+      }
+    } else {
+      token = settings.vimeo_api_access_token;
+    }
+
     this.startUpload();
 
     const uploadInst = new VimeoUploadClient({
       file: data.video,
-      token: settings.vimeo_api_access_token,
+      token,
       metadata: buildVimeoMetadata(data, {
         username: this.currentUser.username,
         viewPrivacy: this.vimeoViewPrivacy,
@@ -314,6 +384,11 @@ export default class VideoUpload extends Component {
 
     try {
       const videoUri = await uploadInst.upload();
+
+      if (this.cancelRequested) {
+        throw new CancelledError();
+      }
+
       const videoId = videoUri.split("/").pop();
       const uploadUrl = uploadInst.videoLink ?? `https://vimeo.com/${videoId}`;
 
@@ -321,6 +396,7 @@ export default class VideoUpload extends Component {
 
       await uploadInst.waitForTranscode({
         interval: STATUS_POLLING_INTERVAL_MILLIS,
+        shouldCancel: () => this.cancelRequested,
       });
 
       this.finishProcessing();
@@ -328,6 +404,18 @@ export default class VideoUpload extends Component {
       this.appEvents.trigger("composer:insert-block", `\n${uploadUrl}\n`);
       this.closeUploadModal();
     } catch (error) {
+      if (error?.cancelled) {
+        try {
+          await uploadInst.deleteVideo();
+        } catch (_) {
+          // ignore delete failure, still reset
+        }
+        this.resetUpload();
+        return;
+      }
+      if (error?.status === 401 && settings.vimeo_oauth_client_id) {
+        clearVimeoToken(this.currentUser.id);
+      }
       this.failUpload(error);
     }
   }
@@ -552,55 +640,76 @@ export default class VideoUpload extends Component {
 
         {{#if this.hasStatus}}
           <div class="video-upload-status">
-            {{#if this.isAuthing}}
+            {{#if this.isCancelling}}
               <div class="video-upload-status-line">
-                <span>{{i18n (themePrefix "status.authenticating")}}</span>
+                <span>{{i18n (themePrefix "status.cancelling")}}</span>
                 <div class="spinner"></div>
               </div>
-            {{/if}}
-
-            {{#if this.isUploading}}
-              <div class="video-upload-status-line">
-                <span>
-                  {{#if this.isPaused}}
-                    {{i18n (themePrefix "status.paused")}}
-                  {{else}}
-                    {{i18n (themePrefix "status.uploading")}}
-                  {{/if}}
-                  {{this.uploadProgress}}%
-                </span>
-                <div class="video-upload-controls">
-                  {{#if this.isPaused}}
-                    <DButton
-                      @action={{this.resumeUpload}}
-                      @icon="play"
-                      class="btn-flat"
-                      @translatedLabel={{i18n (themePrefix "upload.resume")}}
-                    />
-                  {{else}}
-                    <DButton
-                      @action={{this.pauseUpload}}
-                      @icon="pause"
-                      class="btn-flat"
-                      @translatedLabel={{i18n (themePrefix "upload.pause")}}
-                    />
-                  {{/if}}
+            {{else}}
+              {{#if this.isAuthing}}
+                <div class="video-upload-status-line">
+                  <span>{{i18n (themePrefix "status.authenticating")}}</span>
+                  <div class="spinner"></div>
                 </div>
-              </div>
-            {{/if}}
+              {{/if}}
 
-            {{#if this.isProcessing}}
-              <div class="video-upload-status-line">
-                <span>{{i18n (themePrefix "status.transcoding")}}</span>
-                <div class="spinner"></div>
-              </div>
-            {{/if}}
+              {{#if this.isUploading}}
+                <div class="video-upload-status-line">
+                  <span>
+                    {{#if this.isPaused}}
+                      {{i18n (themePrefix "status.paused")}}
+                    {{else}}
+                      {{i18n (themePrefix "status.uploading")}}
+                    {{/if}}
+                    {{this.uploadProgress}}%
+                  </span>
+                  <div class="video-upload-controls">
+                    {{#if this.isPaused}}
+                      <DButton
+                        @action={{this.resumeUpload}}
+                        @icon="play"
+                        class="btn-flat"
+                        @translatedLabel={{i18n (themePrefix "upload.resume")}}
+                      />
+                    {{else}}
+                      <DButton
+                        @action={{this.pauseUpload}}
+                        @icon="pause"
+                        class="btn-flat"
+                        @translatedLabel={{i18n (themePrefix "upload.pause")}}
+                      />
+                    {{/if}}
+                    <DButton
+                      @action={{this.cancelUpload}}
+                      @icon="xmark"
+                      class="btn-flat"
+                      @translatedLabel={{i18n (themePrefix "upload.cancel")}}
+                    />
+                  </div>
+                </div>
+              {{/if}}
 
-            {{#if this.uploadError}}
-              <div class="video-upload-status-line video-upload-error">
-                <span>{{i18n (themePrefix "status.error.upload")}}:
-                  {{this.uploadError}}</span>
-              </div>
+              {{#if this.isProcessing}}
+                <div class="video-upload-status-line">
+                  <span>{{i18n (themePrefix "status.transcoding")}}</span>
+                  <div class="spinner"></div>
+                  <div class="video-upload-controls">
+                    <DButton
+                      @action={{this.cancelUpload}}
+                      @icon="xmark"
+                      class="btn-flat"
+                      @translatedLabel={{i18n (themePrefix "upload.cancel")}}
+                    />
+                  </div>
+                </div>
+              {{/if}}
+
+              {{#if this.uploadError}}
+                <div class="video-upload-status-line video-upload-error">
+                  <span>{{i18n (themePrefix "status.error.upload")}}:
+                    {{this.uploadError}}</span>
+                </div>
+              {{/if}}
             {{/if}}
           </div>
         {{/if}}

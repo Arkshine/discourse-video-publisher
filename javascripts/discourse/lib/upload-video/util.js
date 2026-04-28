@@ -45,3 +45,10 @@ export function uploadErrorMessage(errorData) {
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export class CancelledError extends Error {
+  constructor() {
+    super("Upload cancelled by user.");
+    this.cancelled = true;
+  }
+}

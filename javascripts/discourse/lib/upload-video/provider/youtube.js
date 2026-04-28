@@ -1,5 +1,5 @@
 import ResumableUploadClient from "../client";
-import { sleep, UploadVideoError } from "../util";
+import { CancelledError, sleep, UploadVideoError } from "../util";
 
 export default class YouTubeUploadClient extends ResumableUploadClient {
   static defaults = {
@@ -152,7 +152,7 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
     return data?.items?.[0] || null;
   }
 
-  async waitForYoutubeProcessing(accessToken) {
+  async waitForYoutubeProcessing(accessToken, { shouldCancel = null } = {}) {
     while (true) {
       const video = await this.fetchYoutubeUploadStatus(accessToken);
 
@@ -187,10 +187,34 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
       }
 
       await sleep(5000);
+
+      if (typeof shouldCancel === "function" && shouldCancel()) {
+        throw new CancelledError();
+      }
     }
   }
 
   getResult() {
     return this.videoId;
+  }
+
+  async deleteVideo() {
+    if (!this.videoId) {
+      return;
+    }
+
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?id=${encodeURIComponent(this.videoId)}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`YouTube delete failed: ${response.status}`);
+    }
   }
 }
