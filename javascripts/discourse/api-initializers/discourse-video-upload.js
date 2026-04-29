@@ -52,7 +52,8 @@ export default {
       const params = new URLSearchParams(raw);
       const state = params.get("state");
       const token = params.get("access_token");
-      const error = params.get("error") || (state && !token ? "access_denied" : null);
+      const error =
+        params.get("error") || (state && !token ? "access_denied" : null);
 
       if (state) {
         document.body.classList.add("vimeo-oauth-callback");

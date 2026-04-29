@@ -5,10 +5,13 @@ allowed_groups:
 
 vimeo_upload_enabled:
   default: false
+
 vimeo_oauth_client_id:
   default: ""
+
 vimeo_api_access_token:
-  default: api_access_token
+  default: ""
+
 vimeo_default_view_privacy:
   default: anybody
   type: enum
@@ -16,16 +19,20 @@ vimeo_default_view_privacy:
     - anybody
     - unlisted
     - disable
+
 vimeo_default_embed_privacy:
   default: public
   type: enum
   choices:
     - public
     - private
+
 youtube_upload_enabled:
   default: false
+
 youtube_api_client_id:
-  default: api_client_id
+  default: ""
+
 youtube_default_view_privacy:
   default: unlisted
   type: enum

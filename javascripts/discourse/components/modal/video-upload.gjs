@@ -10,7 +10,10 @@ import icon from "discourse/helpers/d-icon";
 import { eq } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
 import { requestYoutubeAccessToken } from "../../lib/upload-video/google-auth";
-import { clearVimeoToken, requestVimeoAccessToken } from "../../lib/upload-video/vimeo-auth";
+import {
+  clearVimeoToken,
+  requestVimeoAccessToken,
+} from "../../lib/upload-video/vimeo-auth";
 import {
   buildVimeoMetadata,
   buildYoutubeMetadata,
@@ -18,7 +21,10 @@ import {
 } from "../../lib/upload-video/metadata";
 import VimeoUploadClient from "../../lib/upload-video/provider/vimeo";
 import YouTubeUploadClient from "../../lib/upload-video/provider/youtube";
-import { CancelledError, uploadErrorMessage } from "../../lib/upload-video/util";
+import {
+  CancelledError,
+  uploadErrorMessage,
+} from "../../lib/upload-video/util";
 
 const STATUS_POLLING_INTERVAL_MILLIS = 10000;
 

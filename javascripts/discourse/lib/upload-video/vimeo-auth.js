@@ -110,8 +110,8 @@ export async function requestVimeoAccessToken({
             "errors.vimeo_auth_timeout",
             "Vimeo auth timed out. Please try again."
           )
-          )
-        );
+        )
+      );
     }, POPUP_TIMEOUT_MS);
 
     // Detect manual close
