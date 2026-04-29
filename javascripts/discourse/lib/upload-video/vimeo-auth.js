@@ -3,6 +3,7 @@ import { UploadVideoError } from "./util";
 const VIMEO_AUTH_URL = "https://api.vimeo.com/oauth/authorize";
 const VIMEO_SCOPES = "upload edit";
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
+const CLOSED_GRACE_MS = 2000;
 
 function storageKey(userId) {
   return `vimeo_oauth_token_${userId}`;
@@ -87,7 +88,11 @@ export async function requestVimeoAccessToken({
 
     function cleanup() {
       clearTimeout(timeoutId);
+      clearInterval(closedPoll);
       channel.close();
+      if (!popup.closed) {
+        popup.close();
+      }
     }
 
     function settle(fn) {
@@ -105,9 +110,29 @@ export async function requestVimeoAccessToken({
             "errors.vimeo_auth_timeout",
             "Vimeo auth timed out. Please try again."
           )
-        )
-      );
+          )
+        );
     }, POPUP_TIMEOUT_MS);
+
+    // Detect manual close
+    let closedAt = null;
+    const closedPoll = setInterval(() => {
+      if (!popup.closed) {
+        return;
+      }
+      if (closedAt === null) {
+        closedAt = Date.now();
+      } else if (Date.now() - closedAt >= CLOSED_GRACE_MS) {
+        settle(() =>
+          reject(
+            new UploadVideoError(
+              "errors.vimeo_auth_popup_closed",
+              "Vimeo auth was closed before completing."
+            )
+          )
+        );
+      }
+    }, 500);
 
     channel.onmessage = (event) => {
       if (!event.data || event.data.type !== "vimeo-oauth") {
@@ -120,6 +145,18 @@ export async function requestVimeoAccessToken({
             new UploadVideoError(
               "errors.vimeo_auth_state_mismatch",
               "Vimeo auth response did not match the request."
+            )
+          )
+        );
+        return;
+      }
+
+      if (event.data.error) {
+        settle(() =>
+          reject(
+            new UploadVideoError(
+              "errors.vimeo_auth_denied",
+              event.data.errorDescription || "Vimeo authorization was denied."
             )
           )
         );

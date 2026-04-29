@@ -29,24 +29,25 @@ export default {
   initialize(owner) {
     // Handle Vimeo OAuth callback
     if (settings.vimeo_oauth_client_id.trim()) {
-      const { hash } = window.location;
-      if (
-        hash.includes("access_token=") &&
-        hash.includes("token_type=bearer") &&
-        hash.includes("state=")
-      ) {
-        const params = new URLSearchParams(hash.slice(1));
-        const token = params.get("access_token");
-        const state = params.get("state");
+      const { hash, search } = window.location;
+      const raw = hash.startsWith("#") ? hash.slice(1) : search.slice(1);
+      const params = new URLSearchParams(raw);
+      const state = params.get("state");
+      const token = params.get("access_token");
+      const error = params.get("error") || (state && !token ? "access_denied" : null);
 
-        if (!token || !state) {
-          return;
-        }
-
+      if (state) {
         document.body.classList.add("vimeo-oauth-callback");
 
         const channel = new BroadcastChannel(`vimeo-oauth-${state}`);
-        channel.postMessage({ type: "vimeo-oauth", token, state });
+        channel.postMessage({
+          type: "vimeo-oauth",
+          state,
+          token,
+          error,
+          errorDescription: params.get("error_description"),
+        });
+
         channel.close();
         window.close();
         return;

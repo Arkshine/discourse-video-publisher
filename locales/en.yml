@@ -67,6 +67,7 @@ en:
     vimeo_oauth_client_id_missing: "Vimeo OAuth client ID is missing."
     vimeo_auth_popup_blocked: "Vimeo auth popup was blocked. Allow popups for this site and try again."
     vimeo_auth_popup_closed: "Vimeo auth was closed before completing."
+    vimeo_auth_denied: "Vimeo authorization was denied."
     vimeo_auth_timeout: "Vimeo auth timed out. Please try again."
     vimeo_auth_no_token: "No access token returned by Vimeo."
     vimeo_auth_state_mismatch: "Vimeo auth response did not match the request."
