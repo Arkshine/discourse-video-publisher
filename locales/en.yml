@@ -1,6 +1,7 @@
 en:
   theme_metadata:
     settings:
+      video_upload_allowed_groups: "Groups allowed to see and use the video upload toolbar button."
       vimeo_upload_enabled: "Enable upload to Vimeo"
       vimeo_oauth_client_id: "Vimeo OAuth Client ID. When set, users authenticate to their own Vimeo account via a popup. Leave empty to use the static access token below."
       vimeo_api_access_token: "Vimeo API Access Token. Used only when Vimeo OAuth Client ID above is empty."

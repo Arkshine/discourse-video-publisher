@@ -5,6 +5,7 @@ import VideoUpload from "../components/modal/video-upload";
 
 class VideoUploadInit {
   @service modal;
+  @service currentUser;
 
   constructor(owner, api) {
     setOwner(this, owner);
@@ -17,9 +18,26 @@ class VideoUploadInit {
           group: "insertions",
           icon: "video-upload",
           perform: () => this.modal.show(VideoUpload),
+          condition: () => this.userAllowed,
         });
       });
     }
+  }
+
+  get userAllowed() {
+    const allowed = settings.allowed_groups
+      .split("|")
+      .filter(Boolean)
+      .map(Number);
+
+    if (!allowed.length) {
+      return false;
+    }
+
+    const groups = this.currentUser?.groups ?? [];
+    return groups.some(
+      (group) => allowed.includes(0) || allowed.includes(group.id)
+    );
   }
 }
 
