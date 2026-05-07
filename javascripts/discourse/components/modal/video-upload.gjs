@@ -45,6 +45,7 @@ export default class VideoUpload extends Component {
   @service appEvents;
   @service currentUser;
   @service dialog;
+  @service toasts;
 
   @tracked uploadProgress = 0;
   @tracked isAuthing = false;
@@ -233,6 +234,21 @@ export default class VideoUpload extends Component {
     this.uploadError = uploadErrorMessage(error);
   }
 
+  notifyDeleteFailed(provider, error) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `${provider} cancel: failed to delete uploaded video`,
+      error
+    );
+
+    this.toasts.warning({
+      data: {
+        title: i18n(themePrefix("cancel.delete_failed_title")),
+        message: i18n(themePrefix(`cancel.delete_failed_${provider}`)),
+      },
+    });
+  }
+
   resetUpload() {
     this.uploadProgress = 0;
     this.isAuthing = false;
@@ -349,11 +365,7 @@ export default class VideoUpload extends Component {
         try {
           await this.uploader?.deleteVideo();
         } catch (deleteError) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "YouTube cancel: failed to delete uploaded video",
-            deleteError
-          );
+          this.notifyDeleteFailed("youtube", deleteError);
         }
         this.resetUpload();
         return;
@@ -434,11 +446,7 @@ export default class VideoUpload extends Component {
         try {
           await uploadInst.deleteVideo();
         } catch (deleteError) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "Vimeo cancel: failed to delete uploaded video",
-            deleteError
-          );
+          this.notifyDeleteFailed("vimeo", deleteError);
         }
         this.resetUpload();
         return;

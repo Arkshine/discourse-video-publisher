@@ -1,7 +1,7 @@
 en:
   theme_metadata:
     settings:
-      video_upload_allowed_groups: "Groups allowed to see and use the video upload toolbar button."
+      allowed_groups: "Groups allowed to see and use the video upload toolbar button. Leave empty to disable the button entirely."
       vimeo_upload_enabled: "Enable upload to Vimeo"
       vimeo_oauth_client_id: "Vimeo OAuth Client ID. When set, users authenticate to their own Vimeo account via a popup. Leave empty to use the static access token below."
       vimeo_api_access_token: "Vimeo API Access Token. Used only when Vimeo OAuth Client ID above is empty."
@@ -20,6 +20,10 @@ en:
     resume: "Resume"
     cancel: "Cancel"
     cancel-confirm: "This will delete the video from the provider. Are you sure?"
+  cancel:
+    delete_failed_title: "Cleanup failed"
+    delete_failed_vimeo: "The video could not be removed from Vimeo. Please remove it manually from your Vimeo account."
+    delete_failed_youtube: "The video could not be removed from YouTube. Please remove it manually from your YouTube account."
   provider:
     title: "Destination"
     vimeo: "Vimeo"
