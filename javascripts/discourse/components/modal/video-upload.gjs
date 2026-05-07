@@ -270,6 +270,7 @@ export default class VideoUpload extends Component {
 
     this.isCancelling = true;
     this.cancelRequested = true;
+    this.uploader?.cancel();
   }
 
   @action
@@ -316,6 +317,11 @@ export default class VideoUpload extends Component {
       });
 
       this.uploader = uploader;
+
+      if (this.cancelRequested) {
+        throw new CancelledError();
+      }
+
       await uploader.upload();
 
       if (this.cancelRequested) {
@@ -339,8 +345,12 @@ export default class VideoUpload extends Component {
       if (error?.cancelled) {
         try {
           await this.uploader?.deleteVideo();
-        } catch (_) {
-          // ignore delete failure, still reset
+        } catch (deleteError) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "YouTube cancel: failed to delete uploaded video",
+            deleteError
+          );
         }
         this.resetUpload();
         return;
@@ -389,6 +399,10 @@ export default class VideoUpload extends Component {
     this.uploader = uploadInst;
 
     try {
+      if (this.cancelRequested) {
+        throw new CancelledError();
+      }
+
       const videoUri = await uploadInst.upload();
 
       if (this.cancelRequested) {
@@ -413,8 +427,12 @@ export default class VideoUpload extends Component {
       if (error?.cancelled) {
         try {
           await uploadInst.deleteVideo();
-        } catch (_) {
-          // ignore delete failure, still reset
+        } catch (deleteError) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "Vimeo cancel: failed to delete uploaded video",
+            deleteError
+          );
         }
         this.resetUpload();
         return;

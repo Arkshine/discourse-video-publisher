@@ -1,7 +1,7 @@
 import { UploadVideoError } from "./util";
 
 const VIMEO_AUTH_URL = "https://api.vimeo.com/oauth/authorize";
-const VIMEO_SCOPES = "upload edit";
+const VIMEO_SCOPES = "upload edit delete";
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 const CLOSED_GRACE_MS = 2000;
 

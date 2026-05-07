@@ -1,4 +1,4 @@
-import { sleep, UploadVideoError } from "./util";
+import { CancelledError, sleep, UploadVideoError } from "./util";
 
 export default class ResumableUploadClient {
   static defaults = {
@@ -52,14 +52,23 @@ export default class ResumableUploadClient {
     this.retryStartedAt = null;
 
     this.isPaused = false;
+    this.cancelRequested = false;
     this.activeXhr = null;
     this.resumeResolver = null;
   }
 
   async upload() {
     await this.createUploadSessionWithRetry();
+    this.throwIfCancelled();
     await this.sendFile();
+
     return this.getResult?.() ?? null;
+  }
+
+  throwIfCancelled() {
+    if (this.cancelRequested) {
+      throw new CancelledError();
+    }
   }
 
   async createUploadSessionWithRetry() {
@@ -73,6 +82,8 @@ export default class ResumableUploadClient {
   }
 
   async sendFile() {
+    this.throwIfCancelled();
+
     const { content, end } = this.getChunk();
 
     try {
@@ -115,11 +126,18 @@ export default class ResumableUploadClient {
   }
 
   async retryTransientError(error, retryCallback) {
+    if (error?.cancelled || this.cancelRequested) {
+      throw new CancelledError();
+    }
+
     if (this.isPaused) {
       this.resetRetry();
+
       await new Promise((resolve) => {
         this.resumeResolver = resolve;
       });
+
+      this.throwIfCancelled();
       return await retryCallback();
     }
 
@@ -164,6 +182,17 @@ export default class ResumableUploadClient {
 
   unpause() {
     this.isPaused = false;
+
+    if (this.resumeResolver) {
+      this.resumeResolver();
+      this.resumeResolver = null;
+    }
+  }
+
+  cancel() {
+    this.cancelRequested = true;
+    this.activeXhr?.abort();
+
     if (this.resumeResolver) {
       this.resumeResolver();
       this.resumeResolver = null;
@@ -250,11 +279,15 @@ export default class ResumableUploadClient {
       };
 
       xhr.onabort = () => {
-        reject(
-          new UploadVideoError("status.paused", "Upload paused", {
-            details: { isAbort: true },
-          })
-        );
+        if (this.cancelRequested) {
+          reject(new CancelledError());
+        } else {
+          reject(
+            new UploadVideoError("status.paused", "Upload paused", {
+              details: { isAbort: true },
+            })
+          );
+        }
       };
 
       xhr.send(body);

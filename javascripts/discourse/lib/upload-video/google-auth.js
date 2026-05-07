@@ -3,10 +3,7 @@ import { UploadVideoError } from "./util";
 
 const GOOGLE_IDENTITY_SERVICES_URL = "https://accounts.google.com/gsi/client";
 
-const YOUTUBE_UPLOAD_SCOPES = [
-  "https://www.googleapis.com/auth/youtube.upload",
-  "https://www.googleapis.com/auth/youtube.readonly",
-];
+const YOUTUBE_UPLOAD_SCOPES = ["https://www.googleapis.com/auth/youtube"];
 
 const GOOGLE_AUTH_POPUP_ERRORS = {
   popup_closed: [

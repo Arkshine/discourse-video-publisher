@@ -200,18 +200,62 @@ export default class VimeoUploadClient extends ResumableUploadClient {
     return this.videoUri;
   }
 
-  async deleteVideo() {
+  async deleteVideo({ maxAttempts = 4, maxWaitMs = 60_000 } = {}) {
     if (!this.videoUri) {
       return;
     }
 
-    await this.xhr({
-      method: "DELETE",
-      url: `${this.apiUrl}${this.videoUri}`,
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        Accept: this.accept,
-      },
-    });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.xhr({
+          method: "DELETE",
+          url: `${this.apiUrl}${this.videoUri}`,
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            Accept: this.accept,
+          },
+        });
+        return;
+      } catch (error) {
+        if (error?.status !== 429 || attempt === maxAttempts) {
+          throw error;
+        }
+
+        const headerWait = parseVimeoRateLimitWait(error.xhr);
+        const backoff = Math.min(2 ** attempt * 1000, maxWaitMs);
+        const wait = Math.min(headerWait ?? backoff, maxWaitMs);
+        await sleep(wait);
+      }
+    }
   }
+}
+
+function parseVimeoRateLimitWait(xhr) {
+  if (!xhr) {
+    return null;
+  }
+
+  const retryAfter = xhr.getResponseHeader("Retry-After");
+  if (retryAfter) {
+    const seconds = parseInt(retryAfter, 10);
+    if (!Number.isNaN(seconds)) {
+      return seconds * 1000;
+    }
+
+    const date = Date.parse(retryAfter);
+    if (!Number.isNaN(date)) {
+      return Math.max(0, date - Date.now());
+    }
+  }
+
+  const reset = xhr.getResponseHeader("X-RateLimit-Reset");
+  if (reset) {
+    const date = Date.parse(reset);
+
+    if (!Number.isNaN(date)) {
+      return Math.max(0, date - Date.now());
+    }
+  }
+
+  return null;
 }
