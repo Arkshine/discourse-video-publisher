@@ -9,7 +9,10 @@ import Form from "discourse/components/form";
 import icon from "discourse/helpers/d-icon";
 import { eq } from "discourse/truth-helpers";
 import { i18n } from "discourse-i18n";
-import { requestYoutubeAccessToken } from "../../lib/upload-video/google-auth";
+import {
+  clearYoutubeToken,
+  requestYoutubeAccessToken,
+} from "../../lib/upload-video/google-auth";
 import {
   clearVimeoToken,
   requestVimeoAccessToken,
@@ -354,6 +357,9 @@ export default class VideoUpload extends Component {
         }
         this.resetUpload();
         return;
+      }
+      if (error?.status === 401) {
+        clearYoutubeToken(settings.youtube_api_client_id);
       }
       this.failUpload(error);
     } finally {

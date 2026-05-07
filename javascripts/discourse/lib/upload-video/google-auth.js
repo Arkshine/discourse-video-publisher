@@ -4,6 +4,13 @@ import { UploadVideoError } from "./util";
 const GOOGLE_IDENTITY_SERVICES_URL = "https://accounts.google.com/gsi/client";
 
 const YOUTUBE_UPLOAD_SCOPES = ["https://www.googleapis.com/auth/youtube"];
+const TOKEN_EXPIRY_MARGIN_MS = 60_000;
+
+const tokenCache = new Map();
+
+export function clearYoutubeToken(clientId) {
+  tokenCache.delete(clientId);
+}
 
 const GOOGLE_AUTH_POPUP_ERRORS = {
   popup_closed: [
@@ -35,13 +42,21 @@ export async function loadGoogleIdentityServices() {
 
 export async function requestYoutubeAccessToken({
   clientId,
-  prompt = "consent",
+  prompt = "",
+  forceAuth = false,
 }) {
   if (!clientId) {
     throw new UploadVideoError(
       "errors.youtube_client_id_missing",
       "Missing YouTube API client ID."
     );
+  }
+
+  if (!forceAuth) {
+    const cached = tokenCache.get(clientId);
+    if (cached && cached.expiresAt - Date.now() > TOKEN_EXPIRY_MARGIN_MS) {
+      return cached.token;
+    }
   }
 
   const oauth2 = await loadGoogleIdentityServices();
@@ -77,6 +92,12 @@ export async function requestYoutubeAccessToken({
           );
           return;
         }
+
+        const expiresInSeconds = Number(response.expires_in) || 3600;
+        tokenCache.set(clientId, {
+          token: response.access_token,
+          expiresAt: Date.now() + expiresInSeconds * 1000,
+        });
 
         resolve(response.access_token);
       },

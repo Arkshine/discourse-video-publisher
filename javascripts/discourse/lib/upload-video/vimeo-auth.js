@@ -5,32 +5,18 @@ const VIMEO_SCOPES = "upload edit delete";
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 const CLOSED_GRACE_MS = 2000;
 
-function storageKey(userId) {
-  return `vimeo_oauth_token_${userId}`;
-}
+const tokenCache = new Map();
 
 export function getCachedVimeoToken(userId) {
-  try {
-    return localStorage.getItem(storageKey(userId)) ?? null;
-  } catch {
-    return null;
-  }
+  return tokenCache.get(userId) ?? null;
 }
 
 export function clearVimeoToken(userId) {
-  try {
-    localStorage.removeItem(storageKey(userId));
-  } catch {
-    // localStorage unavailable in some privacy modes
-  }
+  tokenCache.delete(userId);
 }
 
 function setCachedVimeoToken(userId, token) {
-  try {
-    localStorage.setItem(storageKey(userId), token);
-  } catch {
-    // ignore
-  }
+  tokenCache.set(userId, token);
 }
 
 export async function requestVimeoAccessToken({
