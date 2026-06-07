@@ -18,9 +18,11 @@ export function buildVimeoMetadata(
   { title, description, vimeoEmbedPrivacy, vimeoViewPrivacy },
   { username, viewPrivacy, embedPrivacy }
 ) {
+  const attribution = `by @${username}`;
+
   return {
     name: title,
-    description: `${description}\nby @${username}`,
+    description: description ? `${description}\n${attribution}` : attribution,
     privacy: {
       view: vimeoViewPrivacy || viewPrivacy,
       embed: vimeoEmbedPrivacy || embedPrivacy,

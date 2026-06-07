@@ -152,7 +152,12 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
     return data?.items?.[0] || null;
   }
 
-  async waitForYoutubeProcessing(accessToken, { shouldCancel = null } = {}) {
+  async waitForYoutubeProcessing(
+    accessToken,
+    { interval = 5000, timeout = 10 * 60 * 1000, shouldCancel = null } = {}
+  ) {
+    const startedAt = Date.now();
+
     while (true) {
       const video = await this.fetchYoutubeUploadStatus(accessToken);
 
@@ -186,7 +191,18 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
         );
       }
 
-      await sleep(5000);
+      if (Date.now() - startedAt > timeout) {
+        throw new UploadVideoError(
+          "errors.youtube_processing_timeout",
+          "Timed out waiting for YouTube processing."
+        );
+      }
+
+      if (typeof shouldCancel === "function" && shouldCancel()) {
+        throw new CancelledError();
+      }
+
+      await sleep(interval);
 
       if (typeof shouldCancel === "function" && shouldCancel()) {
         throw new CancelledError();
@@ -198,23 +214,31 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
     return this.videoId;
   }
 
-  async deleteVideo() {
+  async deleteVideo({ maxAttempts = 4, maxWaitMs = 60_000 } = {}) {
     if (!this.videoId) {
       return;
     }
 
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?id=${encodeURIComponent(this.videoId)}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-        },
-      }
-    );
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?id=${encodeURIComponent(this.videoId)}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+          },
+        }
+      );
 
-    if (!response.ok) {
-      throw new Error(`YouTube delete failed: ${response.status}`);
+      if (response.ok) {
+        return;
+      }
+
+      if (response.status !== 429 || attempt === maxAttempts) {
+        throw new Error(`YouTube delete failed: ${response.status}`);
+      }
+
+      await sleep(Math.min(2 ** attempt * 1000, maxWaitMs));
     }
   }
 }

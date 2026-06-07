@@ -15,11 +15,11 @@ en:
     video: "Upload a video"
     vimeo: "Upload to Vimeo"
     youtube: "Upload to YouTube"
-    choose-provider: "Choose a destination"
+    choose_provider: "Choose a destination"
     pause: "Pause"
     resume: "Resume"
     cancel: "Cancel"
-    cancel-confirm: "This will delete the video from the provider. Are you sure?"
+    cancel_confirm: "This will delete the video from the provider. Are you sure?"
   cancel:
     delete_failed_title: "Cleanup failed"
     delete_failed_vimeo: "The video could not be removed from Vimeo. Please remove it manually from your Vimeo account."
@@ -27,19 +27,25 @@ en:
   provider:
     title: "Destination"
     vimeo: "Vimeo"
-    vimeo-settings: "Vimeo settings"
+    vimeo_settings: "Vimeo settings"
     youtube: "YouTube"
-    youtube-settings: "YouTube settings"
+    youtube_settings: "YouTube settings"
   vimeo_oauth:
     authenticating: "Authenticating with Vimeo…"
   status:
-    uploading: "Uploading"
+    uploading: "Uploading: %{progress}%"
     paused: "Paused"
+    paused_progress: "Paused: %{progress}%"
     transcoding: "Transcoding video"
     authenticating: "Authenticating"
     cancelling: "Cancelling"
     error:
-      upload: "Error uploading video"
+      upload: "Error uploading video: %{error}"
+    announce:
+      uploading: "Video upload started"
+      transcoding: "Video uploaded. Processing started."
+      complete: "Video upload complete"
+      cancelled: "Video upload cancelled"
   validation:
     video:
       required: "Select a video file."
@@ -80,6 +86,7 @@ en:
     vimeo_auth_state_mismatch: "Vimeo auth response did not match the request."
     youtube_client_id_missing: "YouTube API client ID is missing."
     youtube_processing_failed: "YouTube processing failed: %{status}"
+    youtube_processing_timeout: "Timed out waiting for YouTube processing."
     youtube_status_check_failed: "Failed to check YouTube video status."
     youtube_upload_failed: "YouTube upload failed."
     youtube_upload_location_missing: "Missing YouTube resumable upload location."
@@ -91,17 +98,17 @@ en:
     title: "Title"
     description: "Description"
     privacy: "Privacy level"
-    vimeo-embed-privacy: "Embed privacy"
-    vimeo-view-privacy: "View privacy"
-    vimeo-view-privacy-help: "Unlisted and Hide from Vimeo require a paid Vimeo plan."
+    vimeo_embed_privacy: "Embed privacy"
+    vimeo_view_privacy: "View privacy"
+    vimeo_view_privacy_help: "Unlisted and Hide from Vimeo require a paid Vimeo plan."
     scope:
       unlisted: "Unlisted"
       private: "Private"
       public: "Public"
-    vimeo-embed:
+    vimeo_embed:
       private: "Private"
       public: "Public"
-    vimeo-view:
+    vimeo_view:
       anybody: "Public"
       disable: "Hide from Vimeo"
       unlisted: "Unlisted"

@@ -1,19 +1,21 @@
 body.vimeo-oauth-callback {
-  > * {
+  // The OAuth popup briefly renders the full Discourse app before the
+  // initializer posts the token back and closes the window. Hide everything
+  // except the overlay; !important is needed to beat app-level display rules.
+  > :not(.vimeo-oauth-callback__overlay) {
     display: none !important;
   }
+}
 
-  &::after {
-    content: "Authenticating with Vimeo…";
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.125rem;
-    background: var(--secondary);
-    color: var(--primary);
-  }
+.vimeo-oauth-callback__overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-up-1);
+  background: var(--secondary);
+  color: var(--primary);
 }
 
 .d-icon-video-upload {
@@ -26,40 +28,43 @@ body.vimeo-oauth-callback {
     gap: 1rem;
   }
 
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(5px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
   .video-upload-status {
     display: flex;
     flex-direction: column;
     gap: 0.35em;
 
-    .video-upload-status-line {
-      animation: fade-in 0.2s ease-out;
+    &__line {
       display: inline-flex;
       align-items: center;
       gap: 0.4em;
-    }
 
-    .video-upload-error {
-      color: var(--danger);
+      @media (prefers-reduced-motion: no-preference) {
+        animation: video-upload-fade-in 0.2s ease-out;
+      }
+
+      &.--error {
+        color: var(--danger);
+      }
     }
 
     .spinner {
-      height: 10px;
-      width: 10px;
+      height: 0.625em;
+      width: 0.625em;
       margin: 0;
       display: inline-block;
       flex: 0 0 auto;
     }
+  }
+}
+
+@keyframes video-upload-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

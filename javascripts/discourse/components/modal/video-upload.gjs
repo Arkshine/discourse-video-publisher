@@ -1,22 +1,19 @@
 import Component from "@glimmer/component";
 import { cached, tracked } from "@glimmer/tracking";
 import { fn } from "@ember/helper";
+import { on } from "@ember/modifier";
 import { action, getProperties } from "@ember/object";
 import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
 import Form from "discourse/components/form";
-import icon from "discourse/helpers/d-icon";
 import { eq } from "discourse/truth-helpers";
+import icon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
 import {
   clearYoutubeToken,
   requestYoutubeAccessToken,
 } from "../../lib/upload-video/google-auth";
-import {
-  clearVimeoToken,
-  requestVimeoAccessToken,
-} from "../../lib/upload-video/vimeo-auth";
 import {
   buildVimeoMetadata,
   buildYoutubeMetadata,
@@ -28,6 +25,10 @@ import {
   CancelledError,
   uploadErrorMessage,
 } from "../../lib/upload-video/util";
+import {
+  clearVimeoToken,
+  requestVimeoAccessToken,
+} from "../../lib/upload-video/vimeo-auth";
 
 const STATUS_POLLING_INTERVAL_MILLIS = 10000;
 
@@ -42,6 +43,7 @@ const FORM_FIELDS = [
 ];
 
 export default class VideoUpload extends Component {
+  @service a11y;
   @service appEvents;
   @service currentUser;
   @service dialog;
@@ -110,16 +112,11 @@ export default class VideoUpload extends Component {
   }
 
   @action
-  async changeProvider(setProvider, provider) {
+  handleProviderChange(setProvider, value) {
     this.uploadError = null;
     this.formApi?.removeError("provider");
     this.formApi?.removeError("privacy");
 
-    await setProvider(provider);
-  }
-
-  @action
-  handleProviderChange(setProvider, value) {
     setProvider(value);
     this.selectedProvider = value;
   }
@@ -214,16 +211,19 @@ export default class VideoUpload extends Component {
     this.isProcessing = false;
     this.isPaused = false;
     this.uploadError = null;
+    this.a11y.announce(i18n(themePrefix("status.announce.uploading")));
   }
 
   startProcessing() {
     this.uploadProgress = 0;
     this.isUploading = false;
     this.isProcessing = true;
+    this.a11y.announce(i18n(themePrefix("status.announce.transcoding")));
   }
 
   finishProcessing() {
     this.isProcessing = false;
+    this.a11y.announce(i18n(themePrefix("status.announce.complete")));
   }
 
   failUpload(error) {
@@ -232,14 +232,15 @@ export default class VideoUpload extends Component {
     this.isUploading = false;
     this.isProcessing = false;
     this.uploadError = uploadErrorMessage(error);
+    this.a11y.announce(
+      i18n(themePrefix("status.error.upload"), { error: this.uploadError }),
+      "assertive"
+    );
   }
 
   notifyDeleteFailed(provider, error) {
     // eslint-disable-next-line no-console
-    console.warn(
-      `${provider} cancel: failed to delete uploaded video`,
-      error
-    );
+    console.warn(`${provider} cancel: failed to delete uploaded video`, error);
 
     this.toasts.warning({
       data: {
@@ -259,6 +260,7 @@ export default class VideoUpload extends Component {
     this.uploadError = null;
     this.cancelRequested = false;
     this.uploader = null;
+    this.a11y.announce(i18n(themePrefix("status.announce.cancelled")));
   }
 
   @action
@@ -280,7 +282,7 @@ export default class VideoUpload extends Component {
     }
 
     const confirmed = await this.dialog.yesNoConfirm({
-      message: i18n(themePrefix("upload.cancel-confirm")),
+      message: i18n(themePrefix("upload.cancel_confirm")),
     });
 
     if (!confirmed) {
@@ -350,6 +352,7 @@ export default class VideoUpload extends Component {
       this.startProcessing();
 
       const video = await uploader.waitForYoutubeProcessing(accessToken, {
+        interval: STATUS_POLLING_INTERVAL_MILLIS,
         shouldCancel: () => this.cancelRequested,
       });
 
@@ -536,7 +539,7 @@ export default class VideoUpload extends Component {
                   id={{field.id}}
                   accept="video/mp4,video/x-m4v,video/*"
                   disabled={{this.uploadDisabled}}
-                  onchange={{this.validateVideoFile}}
+                  {{on "change" this.validateVideoFile}}
                 />
               </field.Control>
             </form.Field>
@@ -550,7 +553,6 @@ export default class VideoUpload extends Component {
               as |field|
             >
               <field.Control
-                id="video-title"
                 disabled={{this.uploadDisabled}}
                 placeholder={{i18n (themePrefix "details.title")}}
               />
@@ -564,7 +566,6 @@ export default class VideoUpload extends Component {
               as |field|
             >
               <field.Control
-                id="video-description"
                 disabled={{this.uploadDisabled}}
                 placeholder={{i18n (themePrefix "details.description")}}
               />
@@ -577,7 +578,7 @@ export default class VideoUpload extends Component {
               <conditional.Contents as |Content|>
                 <Content @name="youtube">
                   <form.Section
-                    @title={{i18n (themePrefix "provider.youtube-settings")}}
+                    @title={{i18n (themePrefix "provider.youtube_settings")}}
                   >
                     <form.Field
                       @name="privacy"
@@ -586,7 +587,7 @@ export default class VideoUpload extends Component {
                       @type="select"
                       as |field|
                     >
-                      <field.Control id="video-scope" as |select|>
+                      <field.Control as |select|>
                         <select.Option @value="unlisted">
                           {{i18n (themePrefix "details.scope.unlisted")}}
                         </select.Option>
@@ -603,27 +604,27 @@ export default class VideoUpload extends Component {
 
                 <Content @name="vimeo">
                   <form.Section
-                    @title={{i18n (themePrefix "provider.vimeo-settings")}}
+                    @title={{i18n (themePrefix "provider.vimeo_settings")}}
                   >
                     <form.Field
                       @name="vimeoViewPrivacy"
-                      @title={{i18n (themePrefix "details.vimeo-view-privacy")}}
+                      @title={{i18n (themePrefix "details.vimeo_view_privacy")}}
                       @helpText={{i18n
-                        (themePrefix "details.vimeo-view-privacy-help")
+                        (themePrefix "details.vimeo_view_privacy_help")
                       }}
                       @validation="required"
                       @type="select"
                       as |field|
                     >
-                      <field.Control id="vimeo-view-privacy" as |select|>
+                      <field.Control as |select|>
                         <select.Option @value="anybody">
-                          {{i18n (themePrefix "details.vimeo-view.anybody")}}
+                          {{i18n (themePrefix "details.vimeo_view.anybody")}}
                         </select.Option>
                         <select.Option @value="unlisted">
-                          {{i18n (themePrefix "details.vimeo-view.unlisted")}}
+                          {{i18n (themePrefix "details.vimeo_view.unlisted")}}
                         </select.Option>
                         <select.Option @value="disable">
-                          {{i18n (themePrefix "details.vimeo-view.disable")}}
+                          {{i18n (themePrefix "details.vimeo_view.disable")}}
                         </select.Option>
                       </field.Control>
                     </form.Field>
@@ -631,18 +632,18 @@ export default class VideoUpload extends Component {
                     <form.Field
                       @name="vimeoEmbedPrivacy"
                       @title={{i18n
-                        (themePrefix "details.vimeo-embed-privacy")
+                        (themePrefix "details.vimeo_embed_privacy")
                       }}
                       @validation="required"
                       @type="select"
                       as |field|
                     >
-                      <field.Control id="vimeo-embed-privacy" as |select|>
+                      <field.Control as |select|>
                         <select.Option @value="public">
-                          {{i18n (themePrefix "details.vimeo-embed.public")}}
+                          {{i18n (themePrefix "details.vimeo_embed.public")}}
                         </select.Option>
                         <select.Option @value="private">
-                          {{i18n (themePrefix "details.vimeo-embed.private")}}
+                          {{i18n (themePrefix "details.vimeo_embed.private")}}
                         </select.Option>
                       </field.Control>
                     </form.Field>
@@ -657,7 +658,6 @@ export default class VideoUpload extends Component {
       <:footer>
         <DButton
           @action={{this.submitUpload}}
-          @id="video-upload-btn"
           class="btn-primary"
           @icon={{if
             (eq this.selectedProvider "youtube")
@@ -671,7 +671,7 @@ export default class VideoUpload extends Component {
             (if
               (eq this.selectedProvider "vimeo")
               (i18n (themePrefix "upload.vimeo"))
-              (i18n (themePrefix "upload.choose-provider"))
+              (i18n (themePrefix "upload.choose_provider"))
             )
           }}
         />
@@ -679,29 +679,34 @@ export default class VideoUpload extends Component {
         {{#if this.hasStatus}}
           <div class="video-upload-status">
             {{#if this.isCancelling}}
-              <div class="video-upload-status-line">
+              <div class="video-upload-status__line">
                 <span>{{i18n (themePrefix "status.cancelling")}}</span>
                 <div class="spinner"></div>
               </div>
             {{else}}
               {{#if this.isAuthing}}
-                <div class="video-upload-status-line">
+                <div class="video-upload-status__line">
                   <span>{{i18n (themePrefix "status.authenticating")}}</span>
                   <div class="spinner"></div>
                 </div>
               {{/if}}
 
               {{#if this.isUploading}}
-                <div class="video-upload-status-line">
+                <div class="video-upload-status__line">
                   <span>
                     {{#if this.isPaused}}
-                      {{i18n (themePrefix "status.paused")}}
+                      {{i18n
+                        (themePrefix "status.paused_progress")
+                        progress=this.uploadProgress
+                      }}
                     {{else}}
-                      {{i18n (themePrefix "status.uploading")}}
+                      {{i18n
+                        (themePrefix "status.uploading")
+                        progress=this.uploadProgress
+                      }}
                     {{/if}}
-                    {{this.uploadProgress}}%
                   </span>
-                  <div class="video-upload-controls">
+                  <div class="video-upload-status__controls">
                     {{#if this.isPaused}}
                       <DButton
                         @action={{this.resumeUpload}}
@@ -728,10 +733,10 @@ export default class VideoUpload extends Component {
               {{/if}}
 
               {{#if this.isProcessing}}
-                <div class="video-upload-status-line">
+                <div class="video-upload-status__line">
                   <span>{{i18n (themePrefix "status.transcoding")}}</span>
                   <div class="spinner"></div>
-                  <div class="video-upload-controls">
+                  <div class="video-upload-status__controls">
                     <DButton
                       @action={{this.cancelUpload}}
                       @icon="xmark"
@@ -743,9 +748,11 @@ export default class VideoUpload extends Component {
               {{/if}}
 
               {{#if this.uploadError}}
-                <div class="video-upload-status-line video-upload-error">
-                  <span>{{i18n (themePrefix "status.error.upload")}}:
-                    {{this.uploadError}}</span>
+                <div class="video-upload-status__line --error">
+                  <span>{{i18n
+                      (themePrefix "status.error.upload")
+                      error=this.uploadError
+                    }}</span>
                 </div>
               {{/if}}
             {{/if}}

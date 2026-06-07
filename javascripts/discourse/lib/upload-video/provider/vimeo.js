@@ -188,6 +188,10 @@ export default class VimeoUploadClient extends ResumableUploadClient {
         );
       }
 
+      if (typeof shouldCancel === "function" && shouldCancel()) {
+        throw new CancelledError();
+      }
+
       await sleep(interval);
 
       if (typeof shouldCancel === "function" && shouldCancel()) {
