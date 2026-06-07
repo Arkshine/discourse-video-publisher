@@ -2,12 +2,11 @@ import Component from "@glimmer/component";
 import { cached, tracked } from "@glimmer/tracking";
 import { fn } from "@ember/helper";
 import { on } from "@ember/modifier";
-import { action, getProperties } from "@ember/object";
+import { action } from "@ember/object";
 import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
 import Form from "discourse/components/form";
-import { eq } from "discourse/truth-helpers";
 import icon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
 import {
@@ -31,16 +30,6 @@ import {
 } from "../../lib/upload-video/vimeo-auth";
 
 const STATUS_POLLING_INTERVAL_MILLIS = 10000;
-
-const FORM_FIELDS = [
-  "title",
-  "description",
-  "privacy",
-  "provider",
-  "video",
-  "vimeoEmbedPrivacy",
-  "vimeoViewPrivacy",
-];
 
 export default class VideoUpload extends Component {
   @service a11y;
@@ -68,7 +57,15 @@ export default class VideoUpload extends Component {
 
   @cached
   get formData() {
-    return getProperties(this, ...FORM_FIELDS);
+    return {
+      title: this.title,
+      description: this.description,
+      privacy: this.privacy,
+      provider: this.provider,
+      video: this.video,
+      vimeoEmbedPrivacy: this.vimeoEmbedPrivacy,
+      vimeoViewPrivacy: this.vimeoViewPrivacy,
+    };
   }
 
   get hasStatus() {
@@ -106,6 +103,30 @@ export default class VideoUpload extends Component {
     return this.youtubeEnabled && this.vimeoEnabled;
   }
 
+  get submitIcon() {
+    if (this.selectedProvider === "youtube") {
+      return "fab-youtube";
+    }
+
+    if (this.selectedProvider === "vimeo") {
+      return "fab-vimeo-v";
+    }
+
+    return "video";
+  }
+
+  get submitLabel() {
+    if (this.selectedProvider === "youtube") {
+      return i18n(themePrefix("upload.youtube"));
+    }
+
+    if (this.selectedProvider === "vimeo") {
+      return i18n(themePrefix("upload.vimeo"));
+    }
+
+    return i18n(themePrefix("upload.choose_provider"));
+  }
+
   @action
   registerApi(api) {
     this.formApi = api;
@@ -133,10 +154,7 @@ export default class VideoUpload extends Component {
 
     if (!file.type.startsWith("video/")) {
       this.formApi.set("video", null);
-
-      if (input) {
-        input.value = "";
-      }
+      input.value = "";
 
       this.formApi.addError("video", {
         title: i18n(themePrefix("upload.video")),
@@ -659,21 +677,9 @@ export default class VideoUpload extends Component {
         <DButton
           @action={{this.submitUpload}}
           class="btn-primary"
-          @icon={{if
-            (eq this.selectedProvider "youtube")
-            "fab-youtube"
-            (if (eq this.selectedProvider "vimeo") "fab-vimeo-v" "video")
-          }}
+          @icon={{this.submitIcon}}
           @disabled={{this.uploadDisabled}}
-          @translatedLabel={{if
-            (eq this.selectedProvider "youtube")
-            (i18n (themePrefix "upload.youtube"))
-            (if
-              (eq this.selectedProvider "vimeo")
-              (i18n (themePrefix "upload.vimeo"))
-              (i18n (themePrefix "upload.choose_provider"))
-            )
-          }}
+          @translatedLabel={{this.submitLabel}}
         />
 
         {{#if this.hasStatus}}
@@ -681,13 +687,13 @@ export default class VideoUpload extends Component {
             {{#if this.isCancelling}}
               <div class="video-upload-status__line">
                 <span>{{i18n (themePrefix "status.cancelling")}}</span>
-                <div class="spinner"></div>
+                <div class="spinner" aria-hidden="true"></div>
               </div>
             {{else}}
               {{#if this.isAuthing}}
                 <div class="video-upload-status__line">
                   <span>{{i18n (themePrefix "status.authenticating")}}</span>
-                  <div class="spinner"></div>
+                  <div class="spinner" aria-hidden="true"></div>
                 </div>
               {{/if}}
 
@@ -735,7 +741,7 @@ export default class VideoUpload extends Component {
               {{#if this.isProcessing}}
                 <div class="video-upload-status__line">
                   <span>{{i18n (themePrefix "status.transcoding")}}</span>
-                  <div class="spinner"></div>
+                  <div class="spinner" aria-hidden="true"></div>
                   <div class="video-upload-status__controls">
                     <DButton
                       @action={{this.cancelUpload}}
