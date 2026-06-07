@@ -35,10 +35,12 @@ class VideoUploadInit {
       return false;
     }
 
+    if (allowed.includes(0)) {
+      return true;
+    }
+
     const groups = this.currentUser?.groups ?? [];
-    return groups.some(
-      (group) => allowed.includes(0) || allowed.includes(group.id)
-    );
+    return groups.some((group) => allowed.includes(group.id));
   }
 }
 
