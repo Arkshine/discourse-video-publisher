@@ -30,6 +30,8 @@ en:
     vimeo-settings: "Vimeo settings"
     youtube: "YouTube"
     youtube-settings: "YouTube settings"
+  vimeo_oauth:
+    authenticating: "Authenticating with Vimeo…"
   status:
     uploading: "Uploading"
     paused: "Paused"

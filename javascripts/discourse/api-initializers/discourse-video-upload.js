@@ -1,6 +1,7 @@
 import { setOwner } from "@ember/owner";
 import { service } from "@ember/service";
 import { withPluginApi } from "discourse/lib/plugin-api";
+import { i18n } from "discourse-i18n";
 import VideoUpload from "../components/modal/video-upload";
 
 class VideoUploadInit {
@@ -57,6 +58,11 @@ export default {
 
       if (state) {
         document.body.classList.add("vimeo-oauth-callback");
+
+        const overlay = document.createElement("div");
+        overlay.className = "vimeo-oauth-callback__overlay";
+        overlay.textContent = i18n(themePrefix("vimeo_oauth.authenticating"));
+        document.body.appendChild(overlay);
 
         const channel = new BroadcastChannel(`vimeo-oauth-${state}`);
         channel.postMessage({
