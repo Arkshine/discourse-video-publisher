@@ -1,10 +1,10 @@
 {
-  "name": "Video Upload",
+  "name": "Discourse Video Publisher",
   "component": true,
-  "about_url": "https://github.com/xomads/discourse-video-upload",
-  "license_url": "https://github.com/xomads/discourse-video-upload/blob/main/LICENSE",
-  "authors": "https://meta.discourse.org/u/ti0",
-  "theme_version": 0.1,
+  "about_url": "https://github.com/arkshine/discourse-video-publisher",
+  "license_url": "https://github.com/arkshine/discourse-video-publisher/blob/main/LICENSE",
+  "authors": "Arkshine",
+  "theme_version": 1.0,
   "minimum_discourse_version": null,
   "maximum_discourse_version": null,
   "assets": {
