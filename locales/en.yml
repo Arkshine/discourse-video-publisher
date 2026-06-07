@@ -4,7 +4,7 @@ en:
       allowed_groups: "Groups allowed to see and use the video upload toolbar button. Leave empty to disable the button entirely."
       vimeo_upload_enabled: "Enable upload to Vimeo"
       vimeo_oauth_client_id: "Vimeo OAuth Client ID. When set, users authenticate to their own Vimeo account via a popup. Leave empty to use the static access token below."
-      vimeo_api_access_token: "Vimeo API Access Token. Used only when Vimeo OAuth Client ID above is empty."
+      vimeo_api_access_token: "Vimeo API Access Token. Used only when Vimeo OAuth Client ID above is empty and you want to use a same account for everyone. <br> ⚠️ SECURITY WARNING: theme settings are visible to every visitor of this site — anyone can extract this token and use it against the Vimeo API from anywhere. Prefer the OAuth Client ID mode above, where each user uploads to their own account."
       vimeo_default_view_privacy: "Check privacy.view options on this page: https://developer.vimeo.com/api/reference/videos#edit_video"
       vimeo_default_embed_privacy: "Check privacy.embed options on this page: https://developer.vimeo.com/api/reference/videos#edit_video"
       youtube_upload_enabled: "Enable upload to YouTube"
