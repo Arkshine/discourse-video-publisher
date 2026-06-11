@@ -1,9 +1,9 @@
-import { UploadVideoError } from "./util";
+import { CancelledError, UploadVideoError } from "./util";
 
 const VIMEO_AUTH_URL = "https://api.vimeo.com/oauth/authorize";
 const VIMEO_SCOPES = "upload edit delete";
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
-const CLOSED_GRACE_MS = 2000;
+const CANCEL_POLL_MS = 500;
 
 const tokenCache = new Map();
 
@@ -23,6 +23,7 @@ export async function requestVimeoAccessToken({
   clientId,
   userId,
   forceAuth = false,
+  shouldCancel,
 }) {
   if (!clientId) {
     throw new UploadVideoError(
@@ -74,8 +75,10 @@ export async function requestVimeoAccessToken({
 
     function cleanup() {
       clearTimeout(timeoutId);
-      clearInterval(closedPoll);
+      clearInterval(cancelPoll);
+
       channel.close();
+
       if (!popup.closed) {
         popup.close();
       }
@@ -100,25 +103,15 @@ export async function requestVimeoAccessToken({
       );
     }, POPUP_TIMEOUT_MS);
 
-    // Detect manual close
-    let closedAt = null;
-    const closedPoll = setInterval(() => {
-      if (!popup.closed) {
-        return;
+    // `popup.closed` cannot be used to detect a manual close: Vimeo's login
+    // page sets Cross-Origin-Opener-Policy, which severs the opener
+    // reference and makes `popup.closed` report `true` while the window is
+    // still open. Cancellation is polled from the caller instead.
+    const cancelPoll = setInterval(() => {
+      if (shouldCancel?.()) {
+        settle(() => reject(new CancelledError()));
       }
-      if (closedAt === null) {
-        closedAt = Date.now();
-      } else if (Date.now() - closedAt >= CLOSED_GRACE_MS) {
-        settle(() =>
-          reject(
-            new UploadVideoError(
-              "errors.vimeo_auth_popup_closed",
-              "Vimeo auth was closed before completing."
-            )
-          )
-        );
-      }
-    }, 500);
+    }, CANCEL_POLL_MS);
 
     channel.onmessage = (event) => {
       if (!event.data || event.data.type !== "vimeo-oauth") {

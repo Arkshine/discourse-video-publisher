@@ -299,12 +299,14 @@ export default class VideoUpload extends Component {
       return;
     }
 
-    const confirmed = await this.dialog.yesNoConfirm({
-      message: i18n(themePrefix("upload.cancel_confirm")),
-    });
+    if (!this.isAuthing) {
+      const confirmed = await this.dialog.yesNoConfirm({
+        message: i18n(themePrefix("upload.cancel_confirm")),
+      });
 
-    if (!confirmed) {
-      return;
+      if (!confirmed) {
+        return;
+      }
     }
 
     this.isCancelling = true;
@@ -411,9 +413,14 @@ export default class VideoUpload extends Component {
         token = await requestVimeoAccessToken({
           clientId: settings.vimeo_oauth_client_id,
           userId: this.currentUser.id,
+          shouldCancel: () => this.cancelRequested,
         });
       } catch (error) {
-        this.failUpload(error);
+        if (error?.cancelled) {
+          this.resetUpload();
+        } else {
+          this.failUpload(error);
+        }
         return;
       } finally {
         this.isAuthing = false;
@@ -694,6 +701,14 @@ export default class VideoUpload extends Component {
                 <div class="video-upload-status__line">
                   <span>{{i18n (themePrefix "status.authenticating")}}</span>
                   <div class="spinner" aria-hidden="true"></div>
+                  <div class="video-upload-status__controls">
+                    <DButton
+                      @action={{this.cancelUpload}}
+                      @icon="xmark"
+                      class="btn-flat"
+                      @translatedLabel={{i18n (themePrefix "upload.cancel")}}
+                    />
+                  </div>
                 </div>
               {{/if}}
 

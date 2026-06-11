@@ -59,10 +59,8 @@ module("Unit | Lib | upload-video/client", function (hooks) {
     });
 
     const first = client.nextRetryInterval();
-    assert.true(
-      first >= 2000 && first <= 3000,
-      "doubles the interval plus jitter"
-    );
+    assert.true(first >= 2000, "doubles the interval plus jitter");
+    assert.true(first <= 3000, "stays within the jitter upper bound");
 
     client.retryInterval = 5000;
     assert.strictEqual(
