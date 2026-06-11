@@ -1,108 +1,147 @@
-# Discourse Video Upload Theme Component
+# Discourse Video Publisher
 
-This new theme component enables video uploads from the Discourse composer to YouTube and Vimeo. For those already familiar with [the plugin I developed recently](https://meta.discourse.org/t/discourse-video-upload-plugin-with-youtube-and-vimeo/168569), the same is now available in this Theme Component which can be added to any theme. This makes for a much easier installation and works in exactly the same way as the plugin.
+Upload videos directly from the Discourse composer to YouTube or Vimeo and automatically insert the resulting video link into your post once processing is complete.
+
+> ℹ️ This is a continuation of the original work made by @ti0 here https://meta.discourse.org/t/video-upload-to-youtube-and-vimeo-using-theme-component/170079 and contains various fixes and improvements.
 
 ## Features
 
-All forum members can upload videos to Vimeo or YouTube (admins can choose to enable either or both).
+- Upload videos to YouTube, Vimeo, or both directly from the composer toolbar
+- Automatic insertion of the video URL into the post after processing completes
+- Support for YouTube uploads to each user's personal channel via OAuth
+- Two Vimeo upload modes:
+  - User-owned uploads via OAuth
+  - Shared account uploads via a static access token
+- Configurable default privacy settings
+- Upload progress tracking with pause and resume support
+- Cancel uploads or processing and automatically remove the uploaded video
+- Wait for transcoding to finish before inserting the video link
+- Restrict access to the upload button by user's group
 
-Admins can control the view and embed privacy of the videos uploaded to Vimeo using admin settings.
+## Configuration
 
-User can control view privacy of the videos uploaded to YouTube from the upload modal.
+### YouTube
 
-You can watch a demo of the plugin here (everything is same in the component except for the settings page. 
-The component settings page is found under Admin > Customize > Components > Video Upload):
-https://vimeo.com/474476485
+Videos are uploaded to the authenticated user's YouTube channel. Users authorize access through Google's OAuth flow.
 
-## Setup
+**1. Create a project and enable the API**
 
-- Add the theme component by going to Admin > Customize > Themes > Components
-  - Click `Install`
-  - Choose `From a git repository`
-  - Use the link `https://github.com/xomads/discourse-video-upload-component.git`
+1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+2. Create a project
+3. Enable the **YouTube Data API v3** (**APIs & Services → Library** or search _youtube_)
 
-**Important**: For theme components, you need to make sure you activate the component for the themes used on your instance (either click `Add all themes` or choose the themes you want).
-![image|690x221, 50%](https://d11a6trkgmumsb.cloudfront.net/optimized/3X/3/7/37e188a773f3cabecd69e21f9d196a0676ac712a_2_517x165.png)  
- 
-* The developer setup for enabling uploads to YouTube and Vimeo are listed below. If you prefer someone to do it for you, you can request support by contacting me, @ti0.
+**2. Configure the OAuth consent screen**
 
-### For YouTube Uploads
+1. Go to **APIs & Services → OAuth consent screen**
+2. Choose **External** (or **Internal** if all users belong to one Google Workspace organization — Internal skips the verification and warning described below)
+3. Complete the required application details.
+4. Under **Data access** (scopes), add `../auth/youtube` scope. This scope allows the component to upload, check processing status, and delete videos when uploads are cancelled.
 
-** YouTube uploads go to the uploaders account, unlike Vimeo uploads which go to a common account.
+**3. Publish the application**
 
-![YouTube setup steps](https://d11a6trkgmumsb.cloudfront.net/original/3X/b/9/b9551db2408411188b8f8417efd3425184004117.png)
+New applications start in Testing mode (**OAuth consent screen → Audience**) and can only be used by designated test users.
 
-- Create an account and project at https://console.developers.google.com
+For production use, click **Publish app**. then complete Google's OAuth verification process for the YouTube scope (more information here: https://support.google.com/cloud/answer/13464321).
 
-- Enable the YouTube Data API v3
+**4. Create the OAuth client ID**
 
-- Setup the OAuth consent screen for External users (unless all users on your Discourse forum belong to one Google organization).
+1. Go to **APIs & Services → Credentials → Create credentials → OAuth client ID**
+2. Application type: **Web application**
+3. Under **Authorized JavaScript origins**, add your Discourse instance URL (e.g. `https://forum.example.com`)
+4. Copy the generated **Client ID**
 
-- Setup your credentials:
-  - Create an OAuth client ID
-  - Choose Web Application type
-  - Add your Discourse instance URL in the Authorized Javascript origins section 
+**Discourse settings:**
 
-- Copy the generated client ID only
+| Setting                        | Value                                        |
+| ------------------------------ | -------------------------------------------- |
+| `youtube upload enabled`       | Enable                                       |
+| `youtube api client id`        | Paste the Client ID                          |
+| `youtube default view privacy` | `unlisted` (default), `public`, or `private` |
 
-- Go to the component settings page in Discourse Admin, and paste the client ID in the `youtube api client id` field. 
+---
 
-- Enable Youtube uploads by enabling this setting: `youtube upload enabled`
+### Vimeo
 
-- Adjust the default view privacy options for Youtube if required.
+Vimeo supports two upload methods.
 
-- You should now be able to upload videos from the Discourse topic composer directly to YouTube.
+#### Mode 1 — Per-user OAuth (recommended)
 
-### For Vimeo Uploads
+Each user connects their own Vimeo account and uploads videos they personally own.
 
-**Once you setup the plugin with the steps below, <b>all community users will be able to upload videos to *your Vimeo account*.</b>
-You are responsible for limits and usage of your Vimeo account.** 
+**Vimeo developer setup:**
 
-- Create an account and app on Vimeo Developers:
-https://developer.vimeo.com/apps/new
+1. Go to [Vimeo Developer Portal](https://developer.vimeo.com/apps/new) and create an app
+2. On the app page, **Request upload access**
+3. Add your Discourse site's root URL as an OAuth callback URL: **OAuth 2 → Authentication callback URLs**.
+   Example: `https://forum.example.com`
+4. Copy the applucation **Client ID**
 
-- Request Upload Access on the app page
+**Discourse settings**
 
-- Generate an access token with Upload permissions
+| Setting                 | Value               |
+| ----------------------- | ------------------- |
+| `vimeo upload enabled`  | Enable              |
+| `vimeo oauth client id` | Paste the Client ID |
 
-- Go to the component settings page on your Discourse Admin, and add the generated access token in the `vimeo api access token` setting, and save
+#### Mode 2 — Shared account (static token)
 
-- Enable Vimeo uploads by enabling the `vimeo upload enabled` setting.
+All uploads go to a single Vimeo account. Leave `vimeo oauth client id` empty and use a static access token instead.
 
-- Adjust view and embed privacy options 
+> ⚠️ **Security Warning**
+>
+> Theme settings are delivered to every visitor's browser. This means anyone can extract the Vimeo access token and use it directly against your Vimeo account.
+>
+> Depending on the token permissions, attackers may be able to:
+>
+> - Upload content
+> - Modify video settings
+> - Delete videos
+>
+> If you're unsure which mode to use, choose **OAuth mode** instead.
 
-  - See [this vimeo page](https://developer.vimeo.com/api/reference/videos#edit_video) for privacy options: `privacy.view` and `privacy.embed`
-  - Vimeo privacy options like Unlisted and Hide from Vimeo require a paid Vimeo plan. Public is the default.
+**Vimeo setup**
 
-- You should now be able to upload videos from the Discourse topic composer directly to Vimeo
+1. Go to [developer.vimeo.com/apps/new](https://developer.vimeo.com/apps/new) and create an app
+2. On the app page, click **Request upload access**
+3. Go to **Generate an access token** and create a token with the **Upload**, **Edit**, and **Delete** scopes (Edit is used to set privacy on uploaded videos; Delete is used to clean up videos when an upload is cancelled)
+4. Copy the generated token
 
-## Posting a video
+**Discourse settings:**
 
-- To post a video, create a new Topic or reply to an existing
- topic. 
- 
-- Click the new `Upload to Video` button in the composer toolbar (the video icon). This button is only visible if you have enabled either YouTube or Vimeo (or both) in the plugin settings.
+| Setting                  | Value                  |
+| ------------------------ | ---------------------- |
+| `vimeo upload enabled`   | Enable                 |
+| `vimeo oauth client id`  | Leave empty            |
+| `vimeo api access token` | Paste the access token |
 
-- Choose a video file and edit the details such as title and description, if you wish.
-  
-- Click the Upload to Vimeo or Upload to YouTube button. 
-  - The buttons shown will depend on whether you have enabled YouTube / Vimeo uploads (either or both).
-  - It will show you upload progress, and then it will wait till the video completes the transcoding process.
-  - The modal will remain open till the transcoding is complete.
-  - Once transcoding is complete, the video link will be added to the composer (unless there was a transcoding error).
-  
-- Save the post, and your video can be viewed by all other community users 
-  (depending on privacy options you selected).
-  
-### Feature Requests
+#### Vimeo privacy defaults
 
-You can request additional features or support by [contacting me](https://meta.discourse.org/u/ti0/summary).  
+These settings apply to shared-token uploads and act as defaults for OAuth uploads.
 
-### Contributions
+| Setting                       | Options                          |
+| ----------------------------- | -------------------------------- |
+| `vimeo default view privacy`  | `anybody`, `unlisted`, `disable` |
+| `vimeo default embed privacy` | `public`, `private`              |
 
-If you found the plugin helpful, please consider donating to the plugin developer using this Paypal link:
-https://paypal.me/ti0it
+> `unlisted` and `disable` require a paid Vimeo plan.
 
-Big and small contributions are equally welcome :) 
+---
 
-If you would like to enhance the plugin, PRs are welcome.
+### Access control
+
+| Setting          | Value                                                                 |
+| ---------------- | --------------------------------------------------------------------- |
+| `allowed groups` | Groups whose members can see and use the video upload toolbar button. |
+
+---
+
+## Usage
+
+1. Open the composer (new topic or reply)
+2. Click the **video camera** icon in the composer toolbar
+3. Select a video file
+4. Fill in the title and any optional details
+5. Click **Upload to YouTube** or **Upload to Vimeo**
+6. Upload progress is shown — use **Pause** and **Resume** as needed
+7. To abort, click **Cancel** and confirm — the upload is stopped and the video is deleted from the provider. If the deletion fails (for example, if the access token is missing the required scopes or the provider is rate-limiting), a warning toast is shown so you can remove the video manually.
+8. Once transcoding completes, the video link is automatically inserted into the composer
