@@ -84,6 +84,127 @@ module("Unit | Lib | upload-video/client", function (hooks) {
       "leaves the URL untouched without params"
     );
   });
+
+  test("throwIfCancelled throws only after a cancel is requested", function (assert) {
+    const client = makeClient();
+
+    client.throwIfCancelled();
+    assert.true(true, "does not throw before a cancel");
+
+    client.cancelRequested = true;
+    assert.throws(
+      () => client.throwIfCancelled(),
+      /cancelled/i,
+      "throws once a cancel is requested"
+    );
+  });
+
+  test("parseJson handles empty, valid, and invalid payloads", function (assert) {
+    const client = makeClient();
+
+    assert.deepEqual(client.parseJson(""), {}, "empty text yields {}");
+    assert.deepEqual(
+      client.parseJson('{"a":1}'),
+      { a: 1 },
+      "parses valid JSON"
+    );
+    assert.throws(
+      () => client.parseJson("not json"),
+      /Invalid JSON response/,
+      "throws on malformed JSON"
+    );
+  });
+
+  test("retry throws once the elapsed retry window is exceeded", async function (assert) {
+    const client = makeClient({ maxRetryElapsedMillis: 0 });
+    client.retryStartedAt = Date.now() - 10;
+
+    try {
+      await client.retry(() => "nope");
+      assert.true(false, "expected a timeout error");
+    } catch (error) {
+      assert.strictEqual(
+        error.translationKey,
+        "errors.upload_retry_timeout",
+        "raises the retry timeout error"
+      );
+    }
+  });
+
+  test("retryTransientError retries a transient 5xx error", async function (assert) {
+    const client = makeClient({ initialRetryInterval: 1 });
+    let calls = 0;
+
+    const result = await client.retryTransientError({ status: 503 }, () => {
+      calls++;
+      return "ok";
+    });
+
+    assert.strictEqual(result, "ok", "returns the retry result");
+    assert.strictEqual(calls, 1, "invokes the retry callback once");
+  });
+
+  test("retryTransientError rethrows a non-transient error", async function (assert) {
+    const client = makeClient();
+    const original = { status: 400 };
+
+    try {
+      await client.retryTransientError(original, () => "retried");
+      assert.true(false, "expected the original error");
+    } catch (error) {
+      assert.strictEqual(error, original, "propagates the 4xx error");
+    }
+  });
+
+  test("retryTransientError converts a cancel into a CancelledError", async function (assert) {
+    const client = makeClient();
+    client.cancelRequested = true;
+
+    try {
+      await client.retryTransientError({ status: 500 }, () => "retried");
+      assert.true(false, "expected a cancelled error");
+    } catch (error) {
+      assert.true(error.cancelled, "rejects with a cancelled error");
+    }
+  });
+
+  test("cancel during a paused retry rejects without resuming", async function (assert) {
+    const client = makeClient();
+    client.isPaused = true;
+    let called = false;
+
+    const promise = client.retryTransientError({ status: 500 }, () => {
+      called = true;
+      return "resumed";
+    });
+
+    client.cancel();
+
+    try {
+      await promise;
+      assert.true(false, "expected a cancelled error");
+    } catch (error) {
+      assert.true(error.cancelled, "rejects with a cancelled error");
+    }
+
+    assert.false(called, "does not run the retry callback");
+  });
+
+  test("unpause resumes a paused retry", async function (assert) {
+    const client = makeClient();
+    client.isPaused = true;
+    let called = false;
+
+    const promise = client.retryTransientError({ status: 500 }, () => {
+      called = true;
+      return "resumed";
+    });
+
+    client.unpause();
+
+    assert.strictEqual(await promise, "resumed", "runs the retry callback");
+    assert.true(called, "resumes the upload after unpause");
+  });
 });
 
 module("Unit | Lib | upload-video/provider/youtube", function (hooks) {

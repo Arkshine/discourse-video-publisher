@@ -7,6 +7,7 @@ import { service } from "@ember/service";
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
 import Form from "discourse/components/form";
+import { eq } from "discourse/truth-helpers";
 import icon from "discourse/ui-kit/helpers/d-icon";
 import { i18n } from "discourse-i18n";
 import {
@@ -532,7 +533,9 @@ export default class VideoUpload extends Component {
                           @name="youtube"
                           @disabled={{this.uploadDisabled}}
                         >
-                          {{icon "check"}}
+                          {{#if (eq this.selectedProvider "youtube")}}
+                            {{icon "check"}}
+                          {{/if}}
                           {{i18n (themePrefix "provider.youtube")}}
                         </Condition>
 
@@ -540,7 +543,9 @@ export default class VideoUpload extends Component {
                           @name="vimeo"
                           @disabled={{this.uploadDisabled}}
                         >
-                          {{icon "check"}}
+                          {{#if (eq this.selectedProvider "vimeo")}}
+                            {{icon "check"}}
+                          {{/if}}
                           {{i18n (themePrefix "provider.vimeo")}}
                         </Condition>
                       </conditional.Conditions>

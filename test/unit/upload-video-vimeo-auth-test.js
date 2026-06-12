@@ -15,7 +15,10 @@ module("Unit | Lib | upload-video/vimeo-auth", function (hooks) {
       await requestVimeoAccessToken({ clientId: "", userId: 1 });
       assert.true(false, "expected an error");
     } catch (error) {
-      assert.strictEqual(error.key, "errors.vimeo_oauth_client_id_missing");
+      assert.strictEqual(
+        error.translationKey,
+        "errors.vimeo_oauth_client_id_missing"
+      );
     }
   });
 
@@ -26,7 +29,10 @@ module("Unit | Lib | upload-video/vimeo-auth", function (hooks) {
       await requestVimeoAccessToken({ clientId: "abc", userId: 2 });
       assert.true(false, "expected an error");
     } catch (error) {
-      assert.strictEqual(error.key, "errors.vimeo_auth_popup_blocked");
+      assert.strictEqual(
+        error.translationKey,
+        "errors.vimeo_auth_popup_blocked"
+      );
     }
   });
 
