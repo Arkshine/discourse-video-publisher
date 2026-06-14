@@ -46,6 +46,13 @@ body.vimeo-oauth-callback {
       }
     }
 
+    &__controls {
+      .d-icon {
+        position: relative;
+        top: 0.075em;
+      }
+    }
+
     .spinner {
       height: 0.625em;
       width: 0.625em;

@@ -641,7 +641,10 @@ export default class VideoUpload extends Component {
                       @type="select"
                       as |field|
                     >
-                      <field.Control as |select|>
+                          <field.Control
+                            disabled={{this.uploadDisabled}}
+                            as |select|
+                          >
                         <select.Option @value="unlisted">
                           {{i18n (themePrefix "details.scope.unlisted")}}
                         </select.Option>
@@ -670,7 +673,10 @@ export default class VideoUpload extends Component {
                       @type="select"
                       as |field|
                     >
-                      <field.Control as |select|>
+                              <field.Control
+                                disabled={{this.uploadDisabled}}
+                                as |select|
+                              >
                         <select.Option @value="anybody">
                           {{i18n (themePrefix "details.vimeo_view.anybody")}}
                         </select.Option>
@@ -692,7 +698,10 @@ export default class VideoUpload extends Component {
                       @type="select"
                       as |field|
                     >
-                      <field.Control as |select|>
+                              <field.Control
+                                disabled={{this.uploadDisabled}}
+                                as |select|
+                              >
                         <select.Option @value="public">
                           {{i18n (themePrefix "details.vimeo_embed.public")}}
                         </select.Option>
@@ -749,7 +758,7 @@ export default class VideoUpload extends Component {
                     <DButton
                       @action={{this.cancelUpload}}
                       @icon="xmark"
-                      class="btn-flat"
+                      class="btn-small"
                       @translatedLabel={{i18n (themePrefix "upload.cancel")}}
                     />
                   </div>
@@ -776,21 +785,21 @@ export default class VideoUpload extends Component {
                       <DButton
                         @action={{this.resumeUpload}}
                         @icon="play"
-                        class="btn-flat"
+                        class="btn-small"
                         @translatedLabel={{i18n (themePrefix "upload.resume")}}
                       />
                     {{else}}
                       <DButton
                         @action={{this.pauseUpload}}
                         @icon="pause"
-                        class="btn-flat"
+                        class="btn-small"
                         @translatedLabel={{i18n (themePrefix "upload.pause")}}
                       />
                     {{/if}}
                     <DButton
                       @action={{this.cancelUpload}}
                       @icon="xmark"
-                      class="btn-flat"
+                      class="btn-small"
                       @translatedLabel={{i18n (themePrefix "upload.cancel")}}
                     />
                   </div>
