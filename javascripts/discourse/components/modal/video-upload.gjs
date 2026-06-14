@@ -214,11 +214,19 @@ export default class VideoUpload extends Component {
     return this.isUploading || this.isProcessing || this.isAuthing;
   }
 
+  get progressBarStyle() {
+    return htmlSafe(`width: ${this.uploadProgress}%`);
+  }
+
   get isModalDismissable() {
     return !this.uploadDisabled || this.isPaused;
   }
 
   updateProgress(data) {
+    if (!data.total) {
+      return;
+    }
+
     const progress = Math.floor((data.loaded / data.total) * 100);
     this.uploadProgress = progress;
   }
@@ -702,6 +710,21 @@ export default class VideoUpload extends Component {
       </:body>
 
       <:footer>
+        {{#if this.isUploading}}
+          <div
+            class="video-upload-progress {{if this.isPaused '--paused'}}"
+            role="progressbar"
+            aria-label={{i18n (themePrefix "status.upload_progress_label")}}
+            aria-valuenow={{this.uploadProgress}}
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div
+              class="video-upload-progress__bar"
+              style={{this.progressBarStyle}}
+            ></div>
+          </div>
+        {{/if}}
         <DButton
           @action={{this.submitUpload}}
           class="btn-primary"
