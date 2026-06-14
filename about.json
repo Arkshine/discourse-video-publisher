@@ -5,7 +5,7 @@
   "license_url": "https://github.com/arkshine/discourse-video-publisher/blob/main/LICENSE",
   "authors": "Arkshine",
   "theme_version": 1.0,
-  "minimum_discourse_version": null,
+  "minimum_discourse_version": "2026.5.0",
   "maximum_discourse_version": null,
   "assets": {
     "icons-sprite": "./assets/custom-icons.svg"
