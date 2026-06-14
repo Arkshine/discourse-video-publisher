@@ -42,7 +42,7 @@ youtube_default_view_privacy:
     - unlisted
 
 svg_icons:
-  default: "fab-youtube|fab-vimeo-v|video"
+  default: "fab-youtube|fab-vimeo-v|video|upload"
   type: "list"
   list_type: "compact"
 

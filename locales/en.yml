@@ -15,11 +15,13 @@ en:
     video: "Upload a video"
     vimeo: "Upload to Vimeo"
     youtube: "Upload to YouTube"
-    choose_provider: "Choose a destination"
     pause: "Pause"
     resume: "Resume"
     cancel: "Cancel"
     cancel_confirm: "This will delete the video from the provider. Are you sure?"
+    drop_hint: "Drag and drop a video here, or"
+    browse: "Browse files"
+    clear_file: "Remove selected file"
   notices:
     still_processing_title: "Still processing"
     still_processing_youtube: "Your video uploaded successfully and is still processing on YouTube. The link has been inserted and will play once processing finishes."
@@ -29,6 +31,7 @@ en:
     delete_failed_youtube: "The video could not be removed from YouTube. Please remove it manually from your YouTube account."
   provider:
     title: "Destination"
+    choose_hint: "Where would you like to upload your video?"
     vimeo: "Vimeo"
     vimeo_settings: "Vimeo settings"
     youtube: "YouTube"
@@ -36,6 +39,7 @@ en:
   vimeo_oauth:
     authenticating: "Authenticating with Vimeo…"
   status:
+    upload_progress_label: "Upload progress"
     uploading: "Uploading: %{progress}%"
     paused: "Paused"
     paused_progress: "Paused: %{progress}%"
@@ -57,8 +61,6 @@ en:
       required: "Enter a title."
     privacy:
       required: "Select a privacy level."
-    provider:
-      required: "Select where to upload this video."
   errors:
     google_identity_load_failed: "Google Identity Services failed to load."
     google_auth_access_token_missing: "No access token returned by Google."

@@ -1,9 +1,9 @@
 import Component from "@glimmer/component";
 import { cached, tracked } from "@glimmer/tracking";
 import { fn } from "@ember/helper";
-import { on } from "@ember/modifier";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
+import { htmlSafe } from "@ember/template";
 import DButton from "discourse/components/d-button";
 import DModal from "discourse/components/d-modal";
 import Form from "discourse/components/form";
@@ -29,6 +29,7 @@ import {
   clearVimeoToken,
   requestVimeoAccessToken,
 } from "../../lib/upload-video/vimeo-auth";
+import VideoDropZone from "../video-drop-zone";
 
 const STATUS_POLLING_INTERVAL_MILLIS = 10000;
 
@@ -128,7 +129,6 @@ export default class VideoUpload extends Component {
   @action
   handleProviderChange(setProvider, value) {
     this.uploadError = null;
-    this.formApi?.removeError("provider");
     this.formApi?.removeError("privacy");
 
     setProvider(value);
@@ -136,10 +136,12 @@ export default class VideoUpload extends Component {
   }
 
   @action
-  validateVideoFile(event) {
-    const input = event.target;
-    const file = input.files[0];
+  handleFilesSelected(files) {
+    this.validateVideoFile(files?.[0]);
+  }
 
+  @action
+  validateVideoFile(file) {
     if (!file) {
       this.formApi.set("video", null);
       return false;
@@ -147,7 +149,6 @@ export default class VideoUpload extends Component {
 
     if (!file.type.startsWith("video/")) {
       this.formApi.set("video", null);
-      input.value = "";
 
       this.formApi.addError("video", {
         title: i18n(themePrefix("upload.video")),
@@ -162,6 +163,12 @@ export default class VideoUpload extends Component {
     this.formApi.set("title", file.name);
     this.formApi.set("video", file);
     return true;
+  }
+
+  @action
+  clearVideoFile() {
+    this.formApi.removeError("video");
+    this.formApi.set("video", null);
   }
 
   @action
@@ -506,6 +513,7 @@ export default class VideoUpload extends Component {
       @title={{i18n (themePrefix "upload.video")}}
       @closeModal={{this.closeUploadModal}}
       @dismissable={{this.isModalDismissable}}
+      @autofocus={{false}}
       class="video-upload-modal"
     >
       <:body>
@@ -529,188 +537,208 @@ export default class VideoUpload extends Component {
                 {{/unless}}
 
                 <form.Field
-                @name="provider"
-                @title={{i18n (themePrefix "provider.title")}}
-                @type="custom"
-                @format="full"
-                @showTitle={{false}}
-                as |field|
-              >
-                <field.Control>
-                  <form.Container
-                    @title={{i18n (themePrefix "provider.title")}}
-                    @format="full"
-                    @class="--radio-cards"
-                  >
-                    <form.ConditionalContent
-                      @activeName={{field.value}}
-                      @onChange={{fn this.handleProviderChange field.set}}
-                      as |conditional|
+                  @name="provider"
+                  @title={{i18n (themePrefix "provider.title")}}
+                  @type="custom"
+                  @format="full"
+                  @showTitle={{false}}
+                  as |field|
+                >
+                  <field.Control>
+                    <form.Container
+                      @title={{i18n (themePrefix "provider.title")}}
+                      @format="full"
+                      @class="--radio-cards"
                     >
-                      <conditional.Conditions as |Condition|>
-                        <Condition
-                          @name="youtube"
-                          @disabled={{this.uploadDisabled}}
-                        >
-                          {{#if (eq this.selectedProvider "youtube")}}
-                            {{icon "check"}}
-                          {{/if}}
-                          {{i18n (themePrefix "provider.youtube")}}
-                        </Condition>
+                      <form.ConditionalContent
+                        @activeName={{field.value}}
+                        @onChange={{fn this.handleProviderChange field.set}}
+                        as |conditional|
+                      >
+                        <conditional.Conditions as |Condition|>
+                          <Condition
+                            @name="youtube"
+                            @disabled={{this.uploadDisabled}}
+                          >
+                            {{#if (eq this.selectedProvider "youtube")}}
+                              {{icon "check"}}
+                            {{/if}}
+                            {{i18n (themePrefix "provider.youtube")}}
+                          </Condition>
 
-                        <Condition
-                          @name="vimeo"
-                          @disabled={{this.uploadDisabled}}
-                        >
-                          {{#if (eq this.selectedProvider "vimeo")}}
-                            {{icon "check"}}
-                          {{/if}}
-                          {{i18n (themePrefix "provider.vimeo")}}
-                        </Condition>
-                      </conditional.Conditions>
-                    </form.ConditionalContent>
-                  </form.Container>
-                </field.Control>
-              </form.Field>
+                          <Condition
+                            @name="vimeo"
+                            @disabled={{this.uploadDisabled}}
+                          >
+                            {{#if (eq this.selectedProvider "vimeo")}}
+                              {{icon "check"}}
+                            {{/if}}
+                            {{i18n (themePrefix "provider.vimeo")}}
+                          </Condition>
+                        </conditional.Conditions>
+                      </form.ConditionalContent>
+                    </form.Container>
+                  </field.Control>
+                </form.Field>
               </div>
             {{/if}}
 
             {{#if this.selectedProvider}}
               <div class="video-upload-form-reveal">
-            <form.Field
-              @name="video"
-              @title={{i18n (themePrefix "upload.video")}}
-              @type="custom"
-              @format="full"
-              @validation="required"
-              as |field|
-            >
-              <field.Control>
-                <input
-                  type="file"
-                  id={{field.id}}
-                  accept="video/mp4,video/x-m4v,video/*"
-                  disabled={{this.uploadDisabled}}
-                  {{on "change" this.validateVideoFile}}
-                />
-              </field.Control>
-            </form.Field>
+                <form.Field
+                  @name="video"
+                  @title={{i18n (themePrefix "upload.video")}}
+                  @type="custom"
+                  @format="full"
+                  @validation="required"
+                  as |field|
+                >
+                  <field.Control>
+                    <VideoDropZone
+                      @file={{field.value}}
+                      @inputId={{field.id}}
+                      @disabled={{this.uploadDisabled}}
+                      @onFileSelected={{this.handleFilesSelected}}
+                      @onClear={{this.clearVideoFile}}
+                    />
+                  </field.Control>
+                </form.Field>
 
-            <form.Field
-              @name="title"
-              @title={{i18n (themePrefix "details.title")}}
-              @validation="required"
-              @type="input"
-              @format="full"
-              as |field|
-            >
-              <field.Control
-                disabled={{this.uploadDisabled}}
-                placeholder={{i18n (themePrefix "details.title")}}
-              />
-            </form.Field>
+                <form.Field
+                  @name="title"
+                  @title={{i18n (themePrefix "details.title")}}
+                  @validation="required"
+                  @type="input"
+                  @format="full"
+                  as |field|
+                >
+                  <field.Control
+                    disabled={{this.uploadDisabled}}
+                    placeholder={{i18n (themePrefix "details.title")}}
+                  />
+                </form.Field>
 
-            <form.Field
-              @name="description"
-              @title={{i18n (themePrefix "details.description")}}
-              @type="input"
-              @format="full"
-              as |field|
-            >
-              <field.Control
-                disabled={{this.uploadDisabled}}
-                placeholder={{i18n (themePrefix "details.description")}}
-              />
-            </form.Field>
+                <form.Field
+                  @name="description"
+                  @title={{i18n (themePrefix "details.description")}}
+                  @type="textarea"
+                  @format="full"
+                  as |field|
+                >
+                  <field.Control
+                    disabled={{this.uploadDisabled}}
+                    placeholder={{i18n (themePrefix "details.description")}}
+                  />
+                </form.Field>
 
-            <form.ConditionalContent
-              @activeName={{this.selectedProvider}}
-              as |conditional|
-            >
-              <conditional.Contents as |Content|>
-                <Content @name="youtube">
-                  <form.Section
-                    @title={{i18n (themePrefix "provider.youtube_settings")}}
-                  >
-                    <form.Field
-                      @name="privacy"
-                      @title={{i18n (themePrefix "details.privacy")}}
-                      @validation="required"
-                      @type="select"
-                      as |field|
-                    >
+                <form.ConditionalContent
+                  @activeName={{this.selectedProvider}}
+                  as |conditional|
+                >
+                  <conditional.Contents as |Content|>
+                    <Content @name="youtube">
+                      <form.Section
+                        @title={{i18n
+                          (themePrefix "provider.youtube_settings")
+                        }}
+                      >
+                        <form.Field
+                          @name="privacy"
+                          @title={{i18n (themePrefix "details.privacy")}}
+                          @validation="required"
+                          @type="select"
+                          as |field|
+                        >
                           <field.Control
                             disabled={{this.uploadDisabled}}
                             as |select|
                           >
-                        <select.Option @value="unlisted">
-                          {{i18n (themePrefix "details.scope.unlisted")}}
-                        </select.Option>
-                        <select.Option @value="public">
-                          {{i18n (themePrefix "details.scope.public")}}
-                        </select.Option>
-                        <select.Option @value="private">
-                          {{i18n (themePrefix "details.scope.private")}}
-                        </select.Option>
-                      </field.Control>
-                    </form.Field>
-                  </form.Section>
-                </Content>
+                            <select.Option @value="unlisted">
+                              {{i18n (themePrefix "details.scope.unlisted")}}
+                            </select.Option>
+                            <select.Option @value="public">
+                              {{i18n (themePrefix "details.scope.public")}}
+                            </select.Option>
+                            <select.Option @value="private">
+                              {{i18n (themePrefix "details.scope.private")}}
+                            </select.Option>
+                          </field.Control>
+                        </form.Field>
+                      </form.Section>
+                    </Content>
 
-                <Content @name="vimeo">
-                  <form.Section
-                    @title={{i18n (themePrefix "provider.vimeo_settings")}}
-                  >
-                    <form.Field
-                      @name="vimeoViewPrivacy"
-                      @title={{i18n (themePrefix "details.vimeo_view_privacy")}}
-                      @helpText={{i18n
-                        (themePrefix "details.vimeo_view_privacy_help")
-                      }}
-                      @validation="required"
-                      @type="select"
-                      as |field|
-                    >
+                    <Content @name="vimeo">
+                      <form.Section
+                        @title={{i18n (themePrefix "provider.vimeo_settings")}}
+                      >
+                        <form.Row as |row|>
+                          <row.Col @size={{6}}>
+                            <form.Field
+                              @name="vimeoViewPrivacy"
+                              @title={{i18n
+                                (themePrefix "details.vimeo_view_privacy")
+                              }}
+                              @helpText={{i18n
+                                (themePrefix "details.vimeo_view_privacy_help")
+                              }}
+                              @validation="required"
+                              @type="select"
+                              as |field|
+                            >
                               <field.Control
                                 disabled={{this.uploadDisabled}}
                                 as |select|
                               >
-                        <select.Option @value="anybody">
-                          {{i18n (themePrefix "details.vimeo_view.anybody")}}
-                        </select.Option>
-                        <select.Option @value="unlisted">
-                          {{i18n (themePrefix "details.vimeo_view.unlisted")}}
-                        </select.Option>
-                        <select.Option @value="disable">
-                          {{i18n (themePrefix "details.vimeo_view.disable")}}
-                        </select.Option>
-                      </field.Control>
-                    </form.Field>
+                                <select.Option @value="anybody">
+                                  {{i18n
+                                    (themePrefix "details.vimeo_view.anybody")
+                                  }}
+                                </select.Option>
+                                <select.Option @value="unlisted">
+                                  {{i18n
+                                    (themePrefix "details.vimeo_view.unlisted")
+                                  }}
+                                </select.Option>
+                                <select.Option @value="disable">
+                                  {{i18n
+                                    (themePrefix "details.vimeo_view.disable")
+                                  }}
+                                </select.Option>
+                              </field.Control>
+                            </form.Field>
+                          </row.Col>
 
-                    <form.Field
-                      @name="vimeoEmbedPrivacy"
-                      @title={{i18n
-                        (themePrefix "details.vimeo_embed_privacy")
-                      }}
-                      @validation="required"
-                      @type="select"
-                      as |field|
-                    >
+                          <row.Col @size={{6}}>
+                            <form.Field
+                              @name="vimeoEmbedPrivacy"
+                              @title={{i18n
+                                (themePrefix "details.vimeo_embed_privacy")
+                              }}
+                              @validation="required"
+                              @type="select"
+                              as |field|
+                            >
                               <field.Control
                                 disabled={{this.uploadDisabled}}
                                 as |select|
                               >
-                        <select.Option @value="public">
-                          {{i18n (themePrefix "details.vimeo_embed.public")}}
-                        </select.Option>
-                        <select.Option @value="private">
-                          {{i18n (themePrefix "details.vimeo_embed.private")}}
-                        </select.Option>
-                      </field.Control>
-                    </form.Field>
-                  </form.Section>
-                </Content>
-              </conditional.Contents>
+                                <select.Option @value="public">
+                                  {{i18n
+                                    (themePrefix "details.vimeo_embed.public")
+                                  }}
+                                </select.Option>
+                                <select.Option @value="private">
+                                  {{i18n
+                                    (themePrefix "details.vimeo_embed.private")
+                                  }}
+                                </select.Option>
+                              </field.Control>
+                            </form.Field>
+                          </row.Col>
+                        </form.Row>
+                      </form.Section>
+                    </Content>
+                  </conditional.Contents>
                 </form.ConditionalContent>
               </div>
             {{/if}}
