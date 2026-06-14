@@ -477,12 +477,16 @@ export default class VideoUpload extends Component {
 
       this.startProcessing();
 
-      await uploadInst.waitForTranscode({
+      const { timedOut } = await uploadInst.waitForTranscode({
         interval: STATUS_POLLING_INTERVAL_MILLIS,
         shouldCancel: () => this.cancelRequested,
       });
 
       this.finishProcessing();
+
+      if (timedOut) {
+        this.notifyStillProcessing("vimeo");
+      }
 
       this.appEvents.trigger("composer:insert-block", `\n${uploadUrl}\n`);
       this.closeUploadModal();
@@ -845,7 +849,7 @@ export default class VideoUpload extends Component {
                     <DButton
                       @action={{this.cancelUpload}}
                       @icon="xmark"
-                      class="btn-flat"
+                      class="btn-small"
                       @translatedLabel={{i18n (themePrefix "upload.cancel")}}
                     />
                   </div>

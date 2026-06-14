@@ -171,7 +171,7 @@ export default class VimeoUploadClient extends ResumableUploadClient {
       }
 
       if (status === "complete") {
-        return status;
+        return { status, timedOut: false };
       }
 
       if (status === "error") {
@@ -182,10 +182,10 @@ export default class VimeoUploadClient extends ResumableUploadClient {
       }
 
       if (Date.now() - startedAt > timeout) {
-        throw new UploadVideoError(
-          "errors.vimeo_transcoding_timeout",
-          "Timed out waiting for Vimeo transcoding."
-        );
+        // The upload already succeeded and the link is valid; Vimeo keeps
+        // transcoding server-side. Stop watching and let the caller insert the
+        // link rather than failing a large upload that just transcodes slowly.
+        return { status, timedOut: true };
       }
 
       if (typeof shouldCancel === "function" && shouldCancel()) {

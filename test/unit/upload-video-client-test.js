@@ -1,6 +1,7 @@
 import { setupTest } from "ember-qunit";
 import { module, test } from "qunit";
 import ResumableUploadClient from "../../discourse/lib/upload-video/client";
+import VimeoUploadClient from "../../discourse/lib/upload-video/provider/vimeo";
 import YouTubeUploadClient from "../../discourse/lib/upload-video/provider/youtube";
 import { CancelledError } from "../../discourse/lib/upload-video/util";
 
@@ -314,6 +315,65 @@ module("Unit | Lib | upload-video/provider/youtube", function (hooks) {
       client.waitForYoutubeProcessing("token", {
         shouldCancel: () => true,
       }),
+      CancelledError,
+      "cancellation still aborts the wait"
+    );
+  });
+});
+
+module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
+  setupTest(hooks);
+
+  function makeVimeoClient() {
+    return new VimeoUploadClient({
+      file: new Blob(["0123456789"]),
+      token: "token",
+    });
+  }
+
+  test("waitForTranscode returns once transcoding completes", async function (assert) {
+    const client = makeVimeoClient();
+    client.transcodeStatus = async () => "complete";
+
+    const result = await client.waitForTranscode();
+
+    assert.false(result.timedOut, "does not report a timeout");
+    assert.strictEqual(result.status, "complete", "returns the final status");
+  });
+
+  test("waitForTranscode returns timedOut without throwing when transcoding is slow", async function (assert) {
+    const client = makeVimeoClient();
+    client.transcodeStatus = async () => "in_progress";
+
+    // A negative window guarantees the elapsed-time check trips on the first
+    // poll, so the test returns immediately without a real sleep.
+    const result = await client.waitForTranscode({ timeout: -1 });
+
+    assert.true(result.timedOut, "reports the timeout instead of throwing");
+    assert.strictEqual(
+      result.status,
+      "in_progress",
+      "still returns the in-progress status so the link can be inserted"
+    );
+  });
+
+  test("waitForTranscode throws when transcoding fails", async function (assert) {
+    const client = makeVimeoClient();
+    client.transcodeStatus = async () => "error";
+
+    await assert.rejects(
+      client.waitForTranscode(),
+      /Vimeo transcoding failed/,
+      "a genuine transcoding failure is still surfaced"
+    );
+  });
+
+  test("waitForTranscode throws CancelledError when cancelled", async function (assert) {
+    const client = makeVimeoClient();
+    client.transcodeStatus = async () => "in_progress";
+
+    await assert.rejects(
+      client.waitForTranscode({ shouldCancel: () => true }),
       CancelledError,
       "cancellation still aborts the wait"
     );

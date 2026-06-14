@@ -25,6 +25,7 @@ en:
   notices:
     still_processing_title: "Still processing"
     still_processing_youtube: "Your video uploaded successfully and is still processing on YouTube. The link has been inserted and will play once processing finishes."
+    still_processing_vimeo: "Your video uploaded successfully and is still processing on Vimeo. The link has been inserted and will play once processing finishes."
   cancel:
     delete_failed_title: "Cleanup failed"
     delete_failed_vimeo: "The video could not be removed from Vimeo. Please remove it manually from your Vimeo account."
@@ -77,7 +78,6 @@ en:
     vimeo_session_response_invalid: "Invalid Vimeo session response."
     vimeo_transcode_response_invalid: "Invalid Vimeo transcode response."
     vimeo_transcoding_failed: "Vimeo transcoding failed."
-    vimeo_transcoding_timeout: "Timed out waiting for Vimeo transcoding."
     vimeo_privacy_view_unavailable: "Your Vimeo plan or account settings do not allow this view privacy option. Choose Public, or change your Vimeo privacy defaults."
     vimeo_upload_failed: "Vimeo upload failed."
     vimeo_upload_link_missing: "Missing Vimeo upload link in response."
