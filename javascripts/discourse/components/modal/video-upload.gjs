@@ -257,6 +257,15 @@ export default class VideoUpload extends Component {
     );
   }
 
+  notifyStillProcessing(provider) {
+    this.toasts.success({
+      data: {
+        title: i18n(themePrefix("notices.still_processing_title")),
+        message: i18n(themePrefix(`notices.still_processing_${provider}`)),
+      },
+    });
+  }
+
   notifyDeleteFailed(provider, error) {
     // eslint-disable-next-line no-console
     console.warn(`${provider} cancel: failed to delete uploaded video`, error);
@@ -372,12 +381,19 @@ export default class VideoUpload extends Component {
 
       this.startProcessing();
 
-      const video = await uploader.waitForYoutubeProcessing(accessToken, {
-        interval: STATUS_POLLING_INTERVAL_MILLIS,
-        shouldCancel: () => this.cancelRequested,
-      });
+      const { video, timedOut } = await uploader.waitForYoutubeProcessing(
+        accessToken,
+        {
+          interval: STATUS_POLLING_INTERVAL_MILLIS,
+          shouldCancel: () => this.cancelRequested,
+        }
+      );
 
       this.finishProcessing();
+
+      if (timedOut) {
+        this.notifyStillProcessing("youtube");
+      }
 
       this.appEvents.trigger(
         "composer:insert-block",

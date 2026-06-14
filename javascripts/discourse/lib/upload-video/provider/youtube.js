@@ -172,7 +172,7 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
       const processingStatus = video.processingDetails?.processingStatus;
 
       if (processingStatus === "succeeded" || uploadStatus === "processed") {
-        return video;
+        return { video, timedOut: false };
       }
 
       if (processingStatus === "failed" || processingStatus === "terminated") {
@@ -192,10 +192,11 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
       }
 
       if (Date.now() - startedAt > timeout) {
-        throw new UploadVideoError(
-          "errors.youtube_processing_timeout",
-          "Timed out waiting for YouTube processing."
-        );
+        // The upload itself already succeeded; YouTube keeps transcoding
+        // server-side regardless of this client. For large files that
+        // outlast the poll window we stop watching and let the caller insert
+        // the (already valid) link rather than failing the whole upload.
+        return { video, timedOut: true };
       }
 
       if (typeof shouldCancel === "function" && shouldCancel()) {

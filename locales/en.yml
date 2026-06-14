@@ -20,6 +20,9 @@ en:
     resume: "Resume"
     cancel: "Cancel"
     cancel_confirm: "This will delete the video from the provider. Are you sure?"
+  notices:
+    still_processing_title: "Still processing"
+    still_processing_youtube: "Your video uploaded successfully and is still processing on YouTube. The link has been inserted and will play once processing finishes."
   cancel:
     delete_failed_title: "Cleanup failed"
     delete_failed_vimeo: "The video could not be removed from Vimeo. Please remove it manually from your Vimeo account."
@@ -85,7 +88,6 @@ en:
     vimeo_auth_state_mismatch: "Vimeo auth response did not match the request."
     youtube_client_id_missing: "YouTube API client ID is missing."
     youtube_processing_failed: "YouTube processing failed: %{status}"
-    youtube_processing_timeout: "Timed out waiting for YouTube processing."
     youtube_status_check_failed: "Failed to check YouTube video status."
     youtube_upload_failed: "YouTube upload failed."
     youtube_upload_location_missing: "Missing YouTube resumable upload location."
