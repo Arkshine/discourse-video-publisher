@@ -74,7 +74,7 @@ Each user connects their own Vimeo account and uploads videos they personally ow
 2. On the app page, **Request upload access**
 3. Add your Discourse site's root URL as an OAuth callback URL: **OAuth 2 → Authentication callback URLs**.
    Example: `https://forum.example.com`
-4. Copy the applucation **Client ID**
+4. Copy the application **Client ID**
 
 **Discourse settings**
 
@@ -137,11 +137,30 @@ These settings apply to shared-token uploads and act as defaults for OAuth uploa
 
 ## Usage
 
-1. Open the composer (new topic or reply)
-2. Click the **video camera** icon in the composer toolbar
-3. Select a video file
-4. Fill in the title and any optional details
-5. Click **Upload to YouTube** or **Upload to Vimeo**
-6. Upload progress is shown — use **Pause** and **Resume** as needed
-7. To abort, click **Cancel** and confirm — the upload is stopped and the video is deleted from the provider. If the deletion fails (for example, if the access token is missing the required scopes or the provider is rate-limiting), a warning toast is shown so you can remove the video manually.
-8. Once transcoding completes, the video link is automatically inserted into the composer
+1. Click on the upload icon
+
+   ![toolbar icon](./.github/images/upload-0.png)
+
+2. Select the provider and upload the video
+
+   ![upload modal 1](./.github/images/upload-1.jpg)
+
+3. Click **Upload** — a progress bar with the current percentage is shown, with **Pause** and **Resume** as needed.
+
+   If you click **Cancel** before the upload completes, the uploaded video will be removed from the provider.
+
+   ![upload modal 3](./.github/images/upload-2.png)
+
+4. Wait for the upload and transcoding to complete
+
+   ![upload modal 3.1](./.github/images/upload-4.jpg)
+
+5. The video link is automatically inserted into the composer
+
+   ![upload modal 4](./.github/images/upload-3.png)
+
+### Large videos
+
+The component waits up to 10 minutes for the provider to finish transcoding.
+If a large video takes longer, the link is still inserted with a notice that it's processing — the video keeps processing on YouTube/Vimeo and plays once done.
+Applies to both providers.
