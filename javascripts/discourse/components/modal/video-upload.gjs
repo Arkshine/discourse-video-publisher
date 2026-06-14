@@ -109,11 +109,7 @@ export default class VideoUpload extends Component {
       return "fab-youtube";
     }
 
-    if (this.selectedProvider === "vimeo") {
-      return "fab-vimeo-v";
-    }
-
-    return "video";
+    return "fab-vimeo-v";
   }
 
   get submitLabel() {
@@ -121,11 +117,7 @@ export default class VideoUpload extends Component {
       return i18n(themePrefix("upload.youtube"));
     }
 
-    if (this.selectedProvider === "vimeo") {
-      return i18n(themePrefix("upload.vimeo"));
-    }
-
-    return i18n(themePrefix("upload.choose_provider"));
+    return i18n(themePrefix("upload.vimeo"));
   }
 
   @action
@@ -192,13 +184,6 @@ export default class VideoUpload extends Component {
       addError("title", {
         title: i18n(themePrefix("details.title")),
         message: i18n(themePrefix("validation.title.required")),
-      });
-    }
-
-    if (!data.provider) {
-      addError("provider", {
-        title: i18n(themePrefix("provider.title")),
-        message: i18n(themePrefix("validation.provider.required")),
       });
     }
 
@@ -533,7 +518,17 @@ export default class VideoUpload extends Component {
         >
           <form.Section>
             {{#if this.providerSelectionEnabled}}
-              <form.Field
+              <div
+                class="video-upload-provider-choice
+                  {{unless this.selectedProvider '--empty'}}"
+              >
+                {{#unless this.selectedProvider}}
+                  <p class="video-upload-provider-choice__hint">
+                    {{i18n (themePrefix "provider.choose_hint")}}
+                  </p>
+                {{/unless}}
+
+                <form.Field
                 @name="provider"
                 @title={{i18n (themePrefix "provider.title")}}
                 @type="custom"
@@ -577,8 +572,11 @@ export default class VideoUpload extends Component {
                   </form.Container>
                 </field.Control>
               </form.Field>
+              </div>
             {{/if}}
 
+            {{#if this.selectedProvider}}
+              <div class="video-upload-form-reveal">
             <form.Field
               @name="video"
               @title={{i18n (themePrefix "upload.video")}}
@@ -713,7 +711,9 @@ export default class VideoUpload extends Component {
                   </form.Section>
                 </Content>
               </conditional.Contents>
-            </form.ConditionalContent>
+                </form.ConditionalContent>
+              </div>
+            {{/if}}
           </form.Section>
         </Form>
       </:body>
@@ -734,13 +734,16 @@ export default class VideoUpload extends Component {
             ></div>
           </div>
         {{/if}}
-        <DButton
-          @action={{this.submitUpload}}
-          class="btn-primary"
-          @icon={{this.submitIcon}}
-          @disabled={{this.uploadDisabled}}
-          @translatedLabel={{this.submitLabel}}
-        />
+
+        {{#if this.selectedProvider}}
+          <DButton
+            @action={{this.submitUpload}}
+            class="btn-primary"
+            @icon={{this.submitIcon}}
+            @disabled={{this.uploadDisabled}}
+            @translatedLabel={{this.submitLabel}}
+          />
+        {{/if}}
 
         {{#if this.hasStatus}}
           <div class="video-upload-status">

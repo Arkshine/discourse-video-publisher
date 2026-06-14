@@ -61,16 +61,46 @@ body.vimeo-oauth-callback {
       flex: 0 0 auto;
     }
   }
-}
 
-@keyframes video-upload-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
+  .video-upload-form-reveal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .form-kit__control-textarea {
+    min-height: 50px;
+    height: auto;
+  }
+
+  .video-upload-form-reveal,
+  .video-upload-status__line {
+    transition:
+      opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+      translate 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 -8px;
+    }
+  }
+
+  .form-kit__conditional-display-content:not(.hidden) {
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+
+  .form-kit__control-radio-label .d-icon-check {
+    transition: scale 0.15s ease-out;
+
+    @starting-style {
+      scale: 0;
+    }
+  }
+}
+
   }
 }
