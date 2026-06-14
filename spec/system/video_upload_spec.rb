@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe "Video upload toolbar button", system: true do
+RSpec.describe "Video upload toolbar button" do
   let!(:theme) { upload_theme_component }
 
   fab!(:group)
