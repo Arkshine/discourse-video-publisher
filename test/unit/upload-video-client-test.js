@@ -2,6 +2,7 @@ import { setupTest } from "ember-qunit";
 import { module, test } from "qunit";
 import ResumableUploadClient from "../../discourse/lib/upload-video/client";
 import YouTubeUploadClient from "../../discourse/lib/upload-video/provider/youtube";
+import { CancelledError } from "../../discourse/lib/upload-video/util";
 
 function makeClient(overrides = {}) {
   return new ResumableUploadClient({
@@ -243,6 +244,78 @@ module("Unit | Lib | upload-video/provider/youtube", function (hooks) {
       client.extractRangeOffset(xhrWith("bytes")),
       null,
       "returns null when the header has no digits"
+    );
+  });
+
+  test("waitForYoutubeProcessing returns the video once processing succeeds", async function (assert) {
+    const client = makeYoutubeClient();
+    client.videoId = "abc";
+    client.fetchYoutubeUploadStatus = async () => ({
+      id: "abc",
+      status: { uploadStatus: "processed" },
+      processingDetails: { processingStatus: "succeeded" },
+    });
+
+    const result = await client.waitForYoutubeProcessing("token");
+
+    assert.false(result.timedOut, "does not report a timeout");
+    assert.strictEqual(result.video.id, "abc", "returns the fetched video");
+  });
+
+  test("waitForYoutubeProcessing returns timedOut without throwing when processing is slow", async function (assert) {
+    const client = makeYoutubeClient();
+    client.videoId = "abc";
+    client.fetchYoutubeUploadStatus = async () => ({
+      id: "abc",
+      status: { uploadStatus: "uploaded" },
+      processingDetails: { processingStatus: "processing" },
+    });
+
+    // A negative window guarantees the elapsed-time check trips on the first
+    // poll, so the test returns immediately without a real sleep.
+    const result = await client.waitForYoutubeProcessing("token", {
+      timeout: -1,
+    });
+
+    assert.true(result.timedOut, "reports the timeout instead of throwing");
+    assert.strictEqual(
+      result.video.id,
+      "abc",
+      "still returns the in-progress video so the link can be inserted"
+    );
+  });
+
+  test("waitForYoutubeProcessing throws when processing fails", async function (assert) {
+    const client = makeYoutubeClient();
+    client.videoId = "abc";
+    client.fetchYoutubeUploadStatus = async () => ({
+      id: "abc",
+      status: { uploadStatus: "uploaded" },
+      processingDetails: { processingStatus: "failed" },
+    });
+
+    await assert.rejects(
+      client.waitForYoutubeProcessing("token"),
+      /YouTube processing failed/,
+      "a genuine processing failure is still surfaced"
+    );
+  });
+
+  test("waitForYoutubeProcessing throws CancelledError when cancelled", async function (assert) {
+    const client = makeYoutubeClient();
+    client.videoId = "abc";
+    client.fetchYoutubeUploadStatus = async () => ({
+      id: "abc",
+      status: { uploadStatus: "uploaded" },
+      processingDetails: { processingStatus: "processing" },
+    });
+
+    await assert.rejects(
+      client.waitForYoutubeProcessing("token", {
+        shouldCancel: () => true,
+      }),
+      CancelledError,
+      "cancellation still aborts the wait"
     );
   });
 });
