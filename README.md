@@ -73,8 +73,11 @@ Each user connects their own Vimeo account and uploads videos they personally ow
 1. Go to [Vimeo Developer Portal](https://developer.vimeo.com/apps/new) and create an app
 2. On the app page, **Request upload access**
 3. Add your Discourse site's root URL as an OAuth callback URL: **OAuth 2 → Authentication callback URLs**.
-   Example: `https://forum.example.com`
+   Example: `https://forum.example.com` <sup>1</sup>
 4. Copy the application **Client ID**
+
+> ℹ️ <sup>1</sup> Unlike Google, which handles the whole sign-in flow for you, Vimeo offers no such way. So the component drives the OAuth flow itself: it opens a popup and Vimeo redirects back to your forum URL with a short-lived, per-user token.
+> It works in most cases but depending how the forum is reached, it may fail.
 
 **Discourse settings**
 
