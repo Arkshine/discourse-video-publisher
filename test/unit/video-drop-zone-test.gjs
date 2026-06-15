@@ -117,7 +117,6 @@ module("Unit | Component | video-drop-zone", function (hooks) {
     );
 
     await triggerEvent(".video-drop-zone", "drop", { dataTransfer });
-    // uppy's drop handling resolves outside ember's settled() tracking
     await waitUntil(() => selected !== null);
 
     assert.strictEqual(selected.length, 1, "forwards a single file");
@@ -175,8 +174,6 @@ module("Unit | Component | video-drop-zone", function (hooks) {
     );
 
     await triggerEvent(".video-drop-zone", "drop", { dataTransfer });
-    // uppy's drop handling resolves outside ember's settled() tracking; give
-    // its promise chain a macrotask to finish before asserting nothing fired
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     assert.false(called, "@onFileSelected is not called while disabled");

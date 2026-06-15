@@ -55,20 +55,15 @@ module("Unit | Lib | upload-video/vimeo-auth", function (hooks) {
   });
 
   test("does not reject when the popup reports closed (COOP severs the opener)", async function (assert) {
-    // Vimeo's login page sets Cross-Origin-Opener-Policy, so popup.closed is
-    // true while the window is still open. Auth must keep waiting for the
-    // BroadcastChannel message instead of rejecting.
     const popup = { closed: true, close: sinon.stub() };
     sinon.stub(window, "open").returns(popup);
 
     const openCall = window.open;
     const promise = requestVimeoAccessToken({ clientId: "abc", userId: 4 });
 
-    // Recover the state param from the opened URL to answer on the channel.
     const url = new URL(openCall.firstCall.args[0]);
     const state = url.searchParams.get("state");
 
-    // Wait past the old 2s closed-grace window before delivering the token.
     await new Promise((resolve) => setTimeout(resolve, 2600));
 
     const channel = new BroadcastChannel(`vimeo-oauth-${state}`);

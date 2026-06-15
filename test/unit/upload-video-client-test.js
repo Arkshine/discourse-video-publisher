@@ -272,8 +272,6 @@ module("Unit | Lib | upload-video/provider/youtube", function (hooks) {
       processingDetails: { processingStatus: "processing" },
     });
 
-    // A negative window guarantees the elapsed-time check trips on the first
-    // poll, so the test returns immediately without a real sleep.
     const result = await client.waitForYoutubeProcessing("token", {
       timeout: -1,
     });
@@ -345,8 +343,6 @@ module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
     const client = makeVimeoClient();
     client.transcodeStatus = async () => "in_progress";
 
-    // A negative window guarantees the elapsed-time check trips on the first
-    // poll, so the test returns immediately without a real sleep.
     const result = await client.waitForTranscode({ timeout: -1 });
 
     assert.true(result.timedOut, "reports the timeout instead of throwing");
