@@ -1,7 +1,7 @@
 import { CancelledError, UploadVideoError } from "./util";
 
 const VIMEO_AUTH_URL = "https://api.vimeo.com/oauth/authorize";
-const VIMEO_SCOPES = "upload edit delete";
+const VIMEO_SCOPES = "upload delete";
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 const CANCEL_POLL_MS = 500;
 
