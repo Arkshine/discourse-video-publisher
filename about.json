@@ -1,17 +1,16 @@
 {
-  "name": "Video Upload",
+  "name": "Discourse Video Publisher",
   "component": true,
-  "about_url": "https://github.com/xomads/discourse-video-upload",
-  "license_url": "https://github.com/xomads/discourse-video-upload/blob/main/LICENSE",
-  "authors": "https://meta.discourse.org/u/ti0",
-  "theme_version": 0.1,
-  "minimum_discourse_version": null,
+  "about_url": "https://github.com/arkshine/discourse-video-publisher",
+  "license_url": "https://github.com/arkshine/discourse-video-publisher/blob/main/LICENSE",
+  "authors": "Arkshine",
+  "theme_version": 1.0,
+  "minimum_discourse_version": "2026.5.0",
   "maximum_discourse_version": null,
   "assets": {
+    "icons-sprite": "./assets/custom-icons.svg"
   },
-  "color_schemes": {
-  },
-  "modifiers": {
-  },
+  "color_schemes": {},
+  "modifiers": {},
   "learn_more": "https://meta.discourse.org/t/beginners-guide-to-using-discourse-themes/91966"
 }

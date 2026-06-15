@@ -1,30 +1,51 @@
+allowed_groups:
+  default: "0"
+  type: list
+  list_type: group
+
 vimeo_upload_enabled:
   default: false
-  description: "Enable upload to Vimeo"
+
+vimeo_oauth_client_id:
+  default: ""
+
 vimeo_api_access_token:
-  default: api_access_token
-  description: "Vimeo API Access Token"
+  default: ""
+
 vimeo_default_view_privacy:
   default: anybody
-  description: "Check privacy.view options on this page: https://developer.vimeo.com/api/reference/videos#edit_video"
+  type: enum
+  choices:
+    - anybody
+    - unlisted
+    - disable
+
 vimeo_default_embed_privacy:
   default: public
-  description: "Check privacy.embed options on this page: https://developer.vimeo.com/api/reference/videos#edit_video"
+  type: enum
+  choices:
+    - public
+    - private
+
 youtube_upload_enabled:
   default: false
-  description: "Enable upload to YouTube"
+
 youtube_api_client_id:
-  default: api_client_id
-  description: "Youtube API Client ID"
+  default: ""
+
 youtube_default_view_privacy:
   default: unlisted
-  description: "Default privacy for videos uploaded to YouTube"
+  type: enum
+  choices:
+    - private
+    - public
+    - unlisted
 
 svg_icons:
-  default: 'fab-youtube|fab-vimeo-v|fa-video'
-  type: 'list'
-  list_type: 'compact'
+  default: "fab-youtube|fab-vimeo-v|video|upload"
+  type: "list"
+  list_type: "compact"
 
 extend_content_security_policy:
   type: list
-  default: "script_src: https://apis.google.com/js/api.js"
+  default: "script_src: https://accounts.google.com/gsi/client|connect_src: https://api.vimeo.com"
