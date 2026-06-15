@@ -1,5 +1,5 @@
 allowed_groups:
-  default: ""
+  default: "0"
   type: list
   list_type: group
 
