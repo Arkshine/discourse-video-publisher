@@ -164,7 +164,18 @@ export default class VimeoUploadClient extends ResumableUploadClient {
     const startedAt = Date.now();
 
     while (true) {
-      const status = await this.transcodeStatus();
+      if (typeof shouldCancel === "function" && shouldCancel()) {
+        throw new CancelledError();
+      }
+
+      let status = null;
+      try {
+        status = await this.transcodeStatus();
+      } catch (error) {
+        if (!this.isTransientStatus(error?.status)) {
+          throw error;
+        }
+      }
 
       if (typeof onStatus === "function") {
         onStatus(status);
@@ -193,10 +204,6 @@ export default class VimeoUploadClient extends ResumableUploadClient {
       }
 
       await sleep(interval);
-
-      if (typeof shouldCancel === "function" && shouldCancel()) {
-        throw new CancelledError();
-      }
     }
   }
 

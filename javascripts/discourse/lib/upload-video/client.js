@@ -141,13 +141,15 @@ export default class ResumableUploadClient {
       return await retryCallback();
     }
 
-    const status = error?.status;
-
-    if (status === 0 || status >= 500) {
+    if (this.isTransientStatus(error?.status)) {
       return await this.retry(retryCallback);
     }
 
     throw error;
+  }
+
+  isTransientStatus(status) {
+    return status === 0 || status === 429 || status >= 500;
   }
 
   async retry(fn) {

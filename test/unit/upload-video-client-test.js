@@ -146,6 +146,19 @@ module("Unit | Lib | upload-video/client", function (hooks) {
     assert.strictEqual(calls, 1, "invokes the retry callback once");
   });
 
+  test("retryTransientError retries a 429 rate-limit error", async function (assert) {
+    const client = makeClient({ initialRetryInterval: 1 });
+    let calls = 0;
+
+    const result = await client.retryTransientError({ status: 429 }, () => {
+      calls++;
+      return "ok";
+    });
+
+    assert.strictEqual(result, "ok", "returns the retry result");
+    assert.strictEqual(calls, 1, "retries instead of failing on a rate limit");
+  });
+
   test("retryTransientError rethrows a non-transient error", async function (assert) {
     const client = makeClient();
     const original = { status: 400 };
@@ -317,6 +330,70 @@ module("Unit | Lib | upload-video/provider/youtube", function (hooks) {
       "cancellation still aborts the wait"
     );
   });
+
+  test("waitForYoutubeProcessing retries a transient status-check failure", async function (assert) {
+    const client = makeYoutubeClient();
+    client.videoId = "abc";
+    let calls = 0;
+    client.fetchYoutubeUploadStatus = async () => {
+      calls++;
+      if (calls === 1) {
+        const error = new Error("rate limited");
+        error.status = 429;
+        throw error;
+      }
+      return {
+        id: "abc",
+        status: { uploadStatus: "processed" },
+        processingDetails: { processingStatus: "succeeded" },
+      };
+    };
+
+    const result = await client.waitForYoutubeProcessing("token", {
+      interval: 1,
+    });
+
+    assert.false(result.timedOut, "does not fail on the transient error");
+    assert.strictEqual(result.video.id, "abc", "returns the video after retry");
+    assert.strictEqual(calls, 2, "polled again after the rate limit");
+  });
+
+  test("waitForYoutubeProcessing gives up gracefully when status checks keep failing", async function (assert) {
+    const client = makeYoutubeClient();
+    client.videoId = "abc";
+    client.fetchYoutubeUploadStatus = async () => {
+      const error = new Error("rate limited");
+      error.status = 429;
+      throw error;
+    };
+
+    const result = await client.waitForYoutubeProcessing("token", {
+      timeout: -1,
+    });
+
+    assert.true(result.timedOut, "reports a timeout instead of throwing");
+    assert.strictEqual(
+      result.video,
+      null,
+      "no video, so the caller falls back to the known id"
+    );
+  });
+
+  test("waitForYoutubeProcessing surfaces a non-transient status error", async function (assert) {
+    const client = makeYoutubeClient();
+    client.videoId = "abc";
+    client.fetchYoutubeUploadStatus = async () => {
+      const error = new Error("forbidden");
+      error.status = 403;
+      throw error;
+    };
+
+    await assert.rejects(
+      client.waitForYoutubeProcessing("token"),
+      /forbidden/,
+      "a genuine error still aborts"
+    );
+  });
 });
 
 module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
@@ -372,6 +449,41 @@ module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
       client.waitForTranscode({ shouldCancel: () => true }),
       CancelledError,
       "cancellation still aborts the wait"
+    );
+  });
+
+  test("waitForTranscode retries a transient status-check failure", async function (assert) {
+    const client = makeVimeoClient();
+    let calls = 0;
+    client.transcodeStatus = async () => {
+      calls++;
+      if (calls === 1) {
+        const error = new Error("server error");
+        error.status = 503;
+        throw error;
+      }
+      return "complete";
+    };
+
+    const result = await client.waitForTranscode({ interval: 1 });
+
+    assert.false(result.timedOut, "does not fail on the transient error");
+    assert.strictEqual(result.status, "complete", "completes after retry");
+    assert.strictEqual(calls, 2, "polled again after the server error");
+  });
+
+  test("waitForTranscode surfaces a non-transient status error", async function (assert) {
+    const client = makeVimeoClient();
+    client.transcodeStatus = async () => {
+      const error = new Error("bad request");
+      error.status = 400;
+      throw error;
+    };
+
+    await assert.rejects(
+      client.waitForTranscode(),
+      /bad request/,
+      "a genuine error still aborts"
     );
   });
 });

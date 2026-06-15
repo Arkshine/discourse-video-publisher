@@ -401,9 +401,10 @@ export default class VideoUpload extends Component {
         this.notifyStillProcessing("youtube");
       }
 
+      const videoId = uploader.videoId ?? video?.id;
       this.appEvents.trigger(
         "composer:insert-block",
-        `\nhttps://youtube.com/watch?v=${video.id}\n`
+        `\nhttps://youtube.com/watch?v=${videoId}\n`
       );
       this.closeUploadModal();
     } catch (error) {

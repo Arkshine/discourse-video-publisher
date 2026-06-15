@@ -141,12 +141,14 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
     const data = await response.json();
 
     if (!response.ok) {
-      throw data?.error?.message
+      const error = data?.error?.message
         ? new Error(data.error.message)
         : new UploadVideoError(
             "errors.youtube_status_check_failed",
             "Failed to check YouTube video status."
           );
+      error.status = response.status;
+      throw error;
     }
 
     return data?.items?.[0] || null;
@@ -159,36 +161,54 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
     const startedAt = Date.now();
 
     while (true) {
-      const video = await this.fetchYoutubeUploadStatus(accessToken);
-
-      if (!video) {
-        throw new UploadVideoError(
-          "errors.youtube_video_not_found",
-          "Uploaded YouTube video was not found."
-        );
+      if (typeof shouldCancel === "function" && shouldCancel()) {
+        throw new CancelledError();
       }
 
-      const uploadStatus = video.status?.uploadStatus;
-      const processingStatus = video.processingDetails?.processingStatus;
-
-      if (processingStatus === "succeeded" || uploadStatus === "processed") {
-        return { video, timedOut: false };
+      let video = null;
+      let fetched = false;
+      try {
+        video = await this.fetchYoutubeUploadStatus(accessToken);
+        fetched = true;
+      } catch (error) {
+        if (!this.isTransientStatus(error?.status)) {
+          throw error;
+        }
       }
 
-      if (processingStatus === "failed" || processingStatus === "terminated") {
-        throw new UploadVideoError(
-          "errors.youtube_processing_failed",
-          `YouTube processing failed: ${processingStatus}`,
-          { interpolationValues: { status: processingStatus } }
-        );
-      }
+      if (fetched) {
+        if (!video) {
+          throw new UploadVideoError(
+            "errors.youtube_video_not_found",
+            "Uploaded YouTube video was not found."
+          );
+        }
 
-      if (["failed", "rejected", "deleted"].includes(uploadStatus)) {
-        throw new UploadVideoError(
-          "errors.youtube_upload_status_failed",
-          `YouTube upload failed: ${uploadStatus}`,
-          { interpolationValues: { status: uploadStatus } }
-        );
+        const uploadStatus = video.status?.uploadStatus;
+        const processingStatus = video.processingDetails?.processingStatus;
+
+        if (processingStatus === "succeeded" || uploadStatus === "processed") {
+          return { video, timedOut: false };
+        }
+
+        if (
+          processingStatus === "failed" ||
+          processingStatus === "terminated"
+        ) {
+          throw new UploadVideoError(
+            "errors.youtube_processing_failed",
+            `YouTube processing failed: ${processingStatus}`,
+            { interpolationValues: { status: processingStatus } }
+          );
+        }
+
+        if (["failed", "rejected", "deleted"].includes(uploadStatus)) {
+          throw new UploadVideoError(
+            "errors.youtube_upload_status_failed",
+            `YouTube upload failed: ${uploadStatus}`,
+            { interpolationValues: { status: uploadStatus } }
+          );
+        }
       }
 
       if (Date.now() - startedAt > timeout) {
@@ -204,10 +224,6 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
       }
 
       await sleep(interval);
-
-      if (typeof shouldCancel === "function" && shouldCancel()) {
-        throw new CancelledError();
-      }
     }
   }
 
