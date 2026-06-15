@@ -1,6 +1,6 @@
 # Discourse Video Publisher
 
-This component allows you to upload videos directly from the editor to YouTube or Vimeo and automatically insert the resulting video link into your post once processing is complete.
+This component allows you to upload videos directly from the editor to YouTube or Vimeo and automatically inserts the resulting video link into your post once processing is complete.
 
 > ℹ️ This is a continuation and overhaul of the original work made by @ti0 here https://meta.discourse.org/t/video-upload-to-youtube-and-vimeo-using-theme-component/170079 to make it work on the latest Discourse version with improvements and new features.
 
@@ -86,7 +86,7 @@ Each user connects their own Vimeo account and uploads videos they personally ow
 5. Copy the application **Client ID**
 
 > ℹ️ <sup>1</sup> Unlike Google, which handles the whole sign-in flow for you, Vimeo offers no such way. So the component drives the OAuth flow itself: it opens a popup and Vimeo redirects back to your forum URL with a short-lived, per-user token.
-> It works in most cases but depending how the forum is reached, it may fail.
+> It works in most cases, but depending on how the forum is reached, it may fail.
 
 | Setting                 | Value               |
 | ----------------------- | ------------------- |
@@ -104,7 +104,7 @@ All uploads go to a single Vimeo account. Leave `vimeo oauth client id` empty an
 >
 > If you're unsure which mode to use, choose **OAuth mode** instead.
 
-> ℹ️ There are legit usages of using a shared account. If there is enough interest, a plugin version of this component can be made to avoid the security risks of using static token. Let me know!
+> ℹ️ There are legitimate usages for using a shared account. If there is enough interest, a plugin version of this component can be made to avoid the security risks of using a static token. Let me know!
 
 **Vimeo setup**
 
