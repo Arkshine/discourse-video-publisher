@@ -10,6 +10,7 @@ en:
       youtube_upload_enabled: "Enable upload to YouTube"
       youtube_api_client_id: "YouTube API Client ID"
       youtube_default_view_privacy: "Default privacy for videos uploaded to YouTube"
+      processing_wait_timeout_minutes: "How long to wait for the provider to finish processing before inserting the link. After this window the link is inserted anyway, with a notice that the video is still processing. Set to 0 to wait until processing fully completes (the link is inserted only once the video is ready; the upload modal must stay open)."
 
   upload:
     video: "Upload a video"

@@ -206,6 +206,11 @@ export default class VideoUpload extends Component {
     return this.isUploading || this.isProcessing || this.isAuthing;
   }
 
+  get processingTimeout() {
+    const minutes = settings.processing_wait_timeout_minutes;
+    return minutes > 0 ? minutes * 60 * 1000 : Infinity;
+  }
+
   get progressBarStyle() {
     return htmlSafe(`width: ${this.uploadProgress}%`);
   }
@@ -385,6 +390,7 @@ export default class VideoUpload extends Component {
         accessToken,
         {
           interval: STATUS_POLLING_INTERVAL_MILLIS,
+          timeout: this.processingTimeout,
           shouldCancel: () => this.cancelRequested,
         }
       );
@@ -479,6 +485,7 @@ export default class VideoUpload extends Component {
 
       const { timedOut } = await uploadInst.waitForTranscode({
         interval: STATUS_POLLING_INTERVAL_MILLIS,
+        timeout: this.processingTimeout,
         shouldCancel: () => this.cancelRequested,
       });
 

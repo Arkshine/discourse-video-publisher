@@ -41,6 +41,12 @@ youtube_default_view_privacy:
     - public
     - unlisted
 
+processing_wait_timeout_minutes:
+  default: 10
+  type: integer
+  min: 0
+  max: 600
+
 svg_icons:
   default: "fab-youtube|fab-vimeo-v|video|upload"
   type: "list"
