@@ -54,10 +54,10 @@ body.vimeo-oauth-callback {
     display: flex;
     flex-direction: column;
     align-items: center;
-    border: 2px dashed var(--primary-medium);
+    border: 2px dashed var(--primary-low-mid);
     border-radius: var(--d-border-radius);
     background: var(--primary-very-low);
-    padding: 1em;
+    padding: var(--space-3);
     text-align: center;
     max-width: stretch;
     transition:
@@ -96,7 +96,7 @@ body.vimeo-oauth-callback {
       display: inline-flex;
       align-items: center;
       gap: var(--space-2);
-      max-width: 100%;
+      width: stretch;
       padding: var(--space-1) var(--space-3);
       background: var(--primary-low);
       border-radius: var(--d-border-radius);
