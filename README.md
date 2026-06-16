@@ -16,6 +16,7 @@ This component allows you to upload videos directly from the editor to YouTube o
 What's new
 
 - Vimeo: New mode, uploads go directly to each user's personal channel
+- Client-side video preview after selecting a file
 - Upload progress tracking with pause and resume support
 - Cancel uploads or processing and automatically remove the uploaded video
 - Restrict access to the upload button by user's group

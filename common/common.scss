@@ -51,13 +51,14 @@ body.vimeo-oauth-callback {
   }
 
   .video-drop-zone {
+    --video-preview-size: 64px;
     display: flex;
     flex-direction: column;
     align-items: center;
     border: 2px dashed var(--primary-low-mid);
     border-radius: var(--d-border-radius);
     background: var(--primary-very-low);
-    padding: var(--space-3);
+    padding: var(--space-2);
     text-align: center;
     max-width: stretch;
     transition:
@@ -81,6 +82,8 @@ body.vimeo-oauth-callback {
       align-items: center;
       justify-content: center;
       gap: var(--space-2);
+      min-height: var(--video-preview-size);
+      padding: var(--space-1);
 
       .d-icon-upload {
         font-size: var(--font-up-3);
@@ -92,20 +95,22 @@ body.vimeo-oauth-callback {
       color: var(--primary-high);
     }
 
+    &__preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
     &__chip {
       display: inline-flex;
       align-items: center;
       gap: var(--space-2);
       width: stretch;
+      height: var(--video-preview-size);
       padding: var(--space-1) var(--space-3);
       background: var(--primary-low);
       border-radius: var(--d-border-radius);
-
-      .d-icon {
-        color: var(--primary-medium);
-        position: relative;
-        top: 0.075em;
-      }
     }
 
     &__clear {
@@ -113,23 +118,126 @@ body.vimeo-oauth-callback {
     }
 
     &__meta {
-      display: inline-flex;
-      align-items: baseline;
-      gap: var(--space-2);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      gap: var(--space-1);
       min-width: 0;
       overflow: hidden;
+      flex: 1;
+      text-align: left;
     }
 
     &__file-name {
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    &__file-details {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-2);
+      max-width: 100%;
     }
 
     &__file-size {
       font-size: var(--font-down-1);
       color: var(--primary-medium);
       flex: 0 0 auto;
+    }
+
+    &__file-duration,
+    &__file-resolution {
+      font-size: var(--font-down-1);
+      color: var(--primary-medium);
+      flex: 0 0 auto;
+    }
+
+    &__thumb {
+      position: relative;
+      flex: 0 0 auto;
+      height: 100%;
+      aspect-ratio: 1;
+      padding: 0;
+      border: none;
+      border-radius: var(--d-border-radius);
+      overflow: hidden;
+      cursor: pointer;
+      background: var(--primary-low);
+    }
+
+    &__thumb-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    &__thumb-skeleton {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        var(--primary-low) 25%,
+        var(--primary-low-mid) 50%,
+        var(--primary-low) 75%
+      );
+      background-size: 200% 100%;
+      animation: video-drop-zone-shimmer 1.2s ease-in-out infinite;
+    }
+
+    &__thumb-fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      color: var(--primary-medium);
+    }
+
+    &__thumb-play {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--secondary);
+      background: rgb(0, 0, 0, 0.35);
+
+      .d-icon {
+        filter: drop-shadow(0 0 2px rgb(0, 0, 0, 0.6));
+      }
+    }
+
+    &__player-wrap {
+      width: 100%;
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition:
+        max-height 0.25s ease,
+        opacity 0.25s ease;
+
+      &.--open {
+        max-height: 260px;
+        opacity: 1;
+
+        @starting-style {
+          max-height: 0;
+          opacity: 0;
+        }
+      }
+    }
+
+    &__player {
+      width: 100%;
+      max-height: 240px;
+      margin-bottom: var(--space-2);
+      border-radius: var(--d-border-radius);
     }
   }
 
@@ -223,8 +331,19 @@ body.vimeo-oauth-callback {
   }
 }
 
+@keyframes video-drop-zone-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
 @media (prefers-reduced-motion) {
   .video-upload-modal * {
     transition-duration: 0s !important;
+    animation-duration: 0s !important;
   }
 }

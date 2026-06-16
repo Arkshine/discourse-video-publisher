@@ -23,6 +23,7 @@ en:
     drop_hint: "Drag and drop a video here, or"
     browse: "Browse files"
     clear_file: "Remove selected file"
+    toggle_preview: "Toggle video preview"
   notices:
     still_processing_title: "Still processing"
     still_processing_youtube: "Your video uploaded successfully and is still processing on YouTube. The link has been inserted and will play once processing finishes."
