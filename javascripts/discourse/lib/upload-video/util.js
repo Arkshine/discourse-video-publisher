@@ -8,6 +8,7 @@ export class UploadVideoError extends Error {
     this.translationKey = translationKey;
     this.interpolationValues = options.interpolationValues ?? {};
     this.details = options.details;
+    this.cleanup = options.cleanup ?? false;
   }
 }
 

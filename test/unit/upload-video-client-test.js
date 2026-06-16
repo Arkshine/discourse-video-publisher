@@ -308,8 +308,10 @@ module("Unit | Lib | upload-video/provider/youtube", function (hooks) {
 
     await assert.rejects(
       client.waitForYoutubeProcessing("token"),
-      /YouTube processing failed/,
-      "a genuine processing failure is still surfaced"
+      (error) =>
+        /YouTube processing failed/.test(error.message) &&
+        error.cleanup === true,
+      "a genuine processing failure is surfaced and flagged for cleanup"
     );
   });
 
@@ -408,7 +410,10 @@ module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
 
   test("waitForTranscode returns once transcoding completes", async function (assert) {
     const client = makeVimeoClient();
-    client.transcodeStatus = async () => "complete";
+    client.fetchStatus = async () => ({
+      status: "available",
+      transcode: "complete",
+    });
 
     const result = await client.waitForTranscode();
 
@@ -418,7 +423,10 @@ module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
 
   test("waitForTranscode returns timedOut without throwing when transcoding is slow", async function (assert) {
     const client = makeVimeoClient();
-    client.transcodeStatus = async () => "in_progress";
+    client.fetchStatus = async () => ({
+      status: "transcoding",
+      transcode: "in_progress",
+    });
 
     const result = await client.waitForTranscode({ timeout: -1 });
 
@@ -432,18 +440,56 @@ module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
 
   test("waitForTranscode throws when transcoding fails", async function (assert) {
     const client = makeVimeoClient();
-    client.transcodeStatus = async () => "error";
+    client.fetchStatus = async () => ({
+      status: "transcoding",
+      transcode: "error",
+    });
 
     await assert.rejects(
       client.waitForTranscode(),
-      /Vimeo transcoding failed/,
+      /could not process this video/,
       "a genuine transcoding failure is still surfaced"
+    );
+  });
+
+  test("waitForTranscode fails fast on an upload error even while transcode stays in_progress", async function (assert) {
+    const client = makeVimeoClient();
+    let calls = 0;
+    client.fetchStatus = async () => {
+      calls++;
+      return { status: "uploading_error", transcode: "in_progress" };
+    };
+
+    await assert.rejects(
+      client.waitForTranscode({ interval: 1 }),
+      (error) =>
+        /could not process this video/.test(error.message) &&
+        error.cleanup === true,
+      "an uploading_error stops the wait and flags the video for cleanup"
+    );
+    assert.strictEqual(calls, 1, "stops on the first poll, no flooding");
+  });
+
+  test("waitForTranscode surfaces a quota error distinctly", async function (assert) {
+    const client = makeVimeoClient();
+    client.fetchStatus = async () => ({
+      status: "quota_exceeded",
+      transcode: "in_progress",
+    });
+
+    await assert.rejects(
+      client.waitForTranscode({ interval: 1 }),
+      /upload limit/,
+      "quota failures get their own message"
     );
   });
 
   test("waitForTranscode throws CancelledError when cancelled", async function (assert) {
     const client = makeVimeoClient();
-    client.transcodeStatus = async () => "in_progress";
+    client.fetchStatus = async () => ({
+      status: "transcoding",
+      transcode: "in_progress",
+    });
 
     await assert.rejects(
       client.waitForTranscode({ shouldCancel: () => true }),
@@ -455,14 +501,14 @@ module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
   test("waitForTranscode retries a transient status-check failure", async function (assert) {
     const client = makeVimeoClient();
     let calls = 0;
-    client.transcodeStatus = async () => {
+    client.fetchStatus = async () => {
       calls++;
       if (calls === 1) {
         const error = new Error("server error");
         error.status = 503;
         throw error;
       }
-      return "complete";
+      return { status: "available", transcode: "complete" };
     };
 
     const result = await client.waitForTranscode({ interval: 1 });
@@ -474,7 +520,7 @@ module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
 
   test("waitForTranscode surfaces a non-transient status error", async function (assert) {
     const client = makeVimeoClient();
-    client.transcodeStatus = async () => {
+    client.fetchStatus = async () => {
       const error = new Error("bad request");
       error.status = 400;
       throw error;

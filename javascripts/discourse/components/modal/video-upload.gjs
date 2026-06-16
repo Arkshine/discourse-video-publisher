@@ -420,6 +420,11 @@ export default class VideoUpload extends Component {
       if (error?.status === 401) {
         clearYoutubeToken(settings.youtube_api_client_id);
       }
+      if (error?.cleanup) {
+        try {
+          await this.uploader?.deleteVideo();
+        } catch {}
+      }
       this.failUpload(error);
     } finally {
       this.isAuthing = false;
@@ -510,6 +515,11 @@ export default class VideoUpload extends Component {
       }
       if (error?.status === 401 && settings.vimeo_oauth_client_id) {
         clearVimeoToken(this.currentUser.id);
+      }
+      if (error?.cleanup) {
+        try {
+          await uploadInst.deleteVideo();
+        } catch {}
       }
       this.failUpload(error);
     }

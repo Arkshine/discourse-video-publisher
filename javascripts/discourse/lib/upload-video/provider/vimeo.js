@@ -129,7 +129,7 @@ export default class VimeoUploadClient extends ResumableUploadClient {
     );
   }
 
-  async transcodeStatus() {
+  async fetchStatus() {
     if (!this.videoUri) {
       throw new UploadVideoError(
         "errors.vimeo_video_uri_missing",
@@ -139,7 +139,7 @@ export default class VimeoUploadClient extends ResumableUploadClient {
 
     const xhr = await this.xhr({
       method: "GET",
-      url: `${this.apiUrl}${this.videoUri}`,
+      url: `${this.apiUrl}${this.videoUri}?fields=status,transcode.status`,
       headers: {
         Authorization: `Bearer ${this.token}`,
         Accept: this.accept,
@@ -152,7 +152,7 @@ export default class VimeoUploadClient extends ResumableUploadClient {
       "Invalid Vimeo transcode response.",
       "errors.vimeo_transcode_response_invalid"
     );
-    return data?.transcode?.status;
+    return { status: data?.status, transcode: data?.transcode?.status };
   }
 
   async waitForTranscode({
@@ -161,6 +161,15 @@ export default class VimeoUploadClient extends ResumableUploadClient {
     onStatus = null,
     shouldCancel = null,
   } = {}) {
+    // Watch the video `status` too: transcode can stay "in_progress" forever
+    // when the upload itself failed.
+    const QUOTA_STATUSES = ["quota_exceeded", "total_cap_exceeded"];
+    const FATAL_STATUSES = [
+      "uploading_error",
+      "transcoding_error",
+      ...QUOTA_STATUSES,
+    ];
+
     const startedAt = Date.now();
 
     while (true) {
@@ -169,8 +178,9 @@ export default class VimeoUploadClient extends ResumableUploadClient {
       }
 
       let status = null;
+      let transcode = null;
       try {
-        status = await this.transcodeStatus();
+        ({ status, transcode } = await this.fetchStatus());
       } catch (error) {
         if (!this.isTransientStatus(error?.status)) {
           throw error;
@@ -178,17 +188,26 @@ export default class VimeoUploadClient extends ResumableUploadClient {
       }
 
       if (typeof onStatus === "function") {
-        onStatus(status);
+        onStatus(transcode);
       }
 
-      if (status === "complete") {
-        return { status, timedOut: false };
+      if (status === "available" || transcode === "complete") {
+        return { status: transcode, timedOut: false };
       }
 
-      if (status === "error") {
+      if (transcode === "error" || FATAL_STATUSES.includes(status)) {
+        if (QUOTA_STATUSES.includes(status)) {
+          throw new UploadVideoError(
+            "errors.vimeo_quota_exceeded",
+            "Vimeo account upload limit reached.",
+            { cleanup: true }
+          );
+        }
+
         throw new UploadVideoError(
-          "errors.vimeo_transcoding_failed",
-          "Vimeo transcoding failed."
+          "errors.vimeo_processing_failed",
+          "Vimeo could not process this video.",
+          { cleanup: true }
         );
       }
 
@@ -196,7 +215,7 @@ export default class VimeoUploadClient extends ResumableUploadClient {
         // The upload already succeeded and the link is valid; Vimeo keeps
         // transcoding server-side. Stop watching and let the caller insert the
         // link rather than failing a large upload that just transcodes slowly.
-        return { status, timedOut: true };
+        return { status: transcode, timedOut: true };
       }
 
       if (typeof shouldCancel === "function" && shouldCancel()) {

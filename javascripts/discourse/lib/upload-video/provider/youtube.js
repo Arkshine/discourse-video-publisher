@@ -198,7 +198,7 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
           throw new UploadVideoError(
             "errors.youtube_processing_failed",
             `YouTube processing failed: ${processingStatus}`,
-            { interpolationValues: { status: processingStatus } }
+            { interpolationValues: { status: processingStatus }, cleanup: true }
           );
         }
 
@@ -206,7 +206,7 @@ export default class YouTubeUploadClient extends ResumableUploadClient {
           throw new UploadVideoError(
             "errors.youtube_upload_status_failed",
             `YouTube upload failed: ${uploadStatus}`,
-            { interpolationValues: { status: uploadStatus } }
+            { interpolationValues: { status: uploadStatus }, cleanup: true }
           );
         }
       }
