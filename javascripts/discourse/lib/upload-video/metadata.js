@@ -29,3 +29,11 @@ export function buildVimeoMetadata(
     },
   };
 }
+
+export function buildCloudflareStreamMetadata({ title }) {
+  return { title };
+}
+
+export function buildMuxMetadata({ title }) {
+  return { title };
+}

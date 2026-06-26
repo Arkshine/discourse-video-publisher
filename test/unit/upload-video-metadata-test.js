@@ -1,6 +1,8 @@
 import { setupTest } from "ember-qunit";
 import { module, test } from "qunit";
 import {
+  buildCloudflareStreamMetadata,
+  buildMuxMetadata,
   buildVimeoMetadata,
   buildYoutubeMetadata,
   buildYoutubeMetadataParts,
@@ -76,5 +78,15 @@ module("Unit | Lib | upload-video/metadata", function (hooks) {
       { view: "anybody", embed: "public" },
       "falls back to the default privacy settings"
     );
+  });
+
+  test("buildCloudflareStreamMetadata keeps the title", function (assert) {
+    assert.deepEqual(buildCloudflareStreamMetadata({ title: "clip" }), {
+      title: "clip",
+    });
+  });
+
+  test("buildMuxMetadata keeps the title", function (assert) {
+    assert.deepEqual(buildMuxMetadata({ title: "clip" }), { title: "clip" });
   });
 });
