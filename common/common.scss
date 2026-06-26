@@ -1,13 +1,13 @@
-body.vimeo-oauth-callback {
-  // The OAuth popup briefly renders the full Discourse app before the
-  // initializer posts the token back and closes the window. Hide everything
-  // except the overlay; !important is needed to beat app-level display rules.
-  > :not(.vimeo-oauth-callback__overlay) {
-    display: none !important;
-  }
+// The OAuth/SSO popup briefly renders the full Discourse app before the
+// initializer posts the result back and closes the window. Hide everything
+// except the overlay.
+body.vimeo-oauth-callback > :not(.vimeo-oauth-callback__overlay),
+body.video-broker-callback > :not(.video-broker-callback__overlay) {
+  display: none !important;
 }
 
-.vimeo-oauth-callback__overlay {
+.vimeo-oauth-callback__overlay,
+.video-broker-callback__overlay {
   position: fixed;
   inset: 0;
   display: flex;
@@ -20,6 +20,14 @@ body.vimeo-oauth-callback {
 
 .d-icon-video-upload {
   font-size: var(--font-up-2);
+}
+
+.cooked iframe[src*="player.mux.com"],
+.cooked iframe[src*="iframe.videodelivery.net"],
+.cooked iframe[src*="cloudflarestream.com"] {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
 }
 
 .video-upload-modal {
@@ -47,6 +55,22 @@ body.vimeo-oauth-callback {
       margin: 0 0 1em;
       text-align: center;
       color: var(--primary-high);
+    }
+
+    .form-kit__inline-radio {
+      flex-wrap: wrap;
+
+      > * {
+        flex: 1 1 auto;
+        width: auto;
+      }
+
+      .form-kit__control-radio-label {
+        flex: 1 1 auto;
+        width: auto;
+        white-space: nowrap;
+        text-align: center;
+      }
     }
   }
 

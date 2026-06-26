@@ -15,10 +15,18 @@ import {
   requestYoutubeAccessToken,
 } from "../../lib/upload-video/google-auth";
 import {
+  clearBrokerToken,
+  requestBrokerToken,
+} from "../../lib/upload-video/broker-auth";
+import {
+  buildCloudflareStreamMetadata,
+  buildMuxMetadata,
   buildVimeoMetadata,
   buildYoutubeMetadata,
   buildYoutubeMetadataParts,
 } from "../../lib/upload-video/metadata";
+import CloudflareStreamUploadClient from "../../lib/upload-video/provider/cloudflare-stream";
+import MuxUploadClient from "../../lib/upload-video/provider/mux";
 import VimeoUploadClient from "../../lib/upload-video/provider/vimeo";
 import YouTubeUploadClient from "../../lib/upload-video/provider/youtube";
 import {
@@ -48,9 +56,13 @@ export default class VideoUpload extends Component {
   @tracked uploadError = null;
   @tracked isCancelling = false;
   @tracked selectedProvider = this.defaultProvider;
+  @tracked embeddableUrl = null;
 
   uploader = null;
   cancelRequested = false;
+  completed = false;
+  insertEarlyRequested = false;
+  insertEmbed = null;
 
   privacy = settings.youtube_default_view_privacy;
   provider = this.defaultProvider;
@@ -81,44 +93,72 @@ export default class VideoUpload extends Component {
     );
   }
 
-  get vimeoEnabled() {
-    return settings.vimeo_upload_enabled;
+  get providers() {
+    return [
+      {
+        id: "youtube",
+        enabled: settings.youtube_upload_enabled,
+        icon: "fab-youtube",
+        labelKey: "provider.youtube",
+        submitKey: "upload.youtube",
+        handler: "youtubeUpload",
+      },
+      {
+        id: "vimeo",
+        enabled: settings.vimeo_upload_enabled,
+        icon: "fab-vimeo-v",
+        labelKey: "provider.vimeo",
+        submitKey: "upload.vimeo",
+        handler: "vimeoUpload",
+      },
+      {
+        id: "cloudflare_stream",
+        enabled: settings.cloudflare_stream_upload_enabled,
+        icon: "fab-cloudflare",
+        labelKey: "provider.cloudflare_stream",
+        submitKey: "upload.cloudflare",
+        handler: "cloudflareUpload",
+      },
+      {
+        id: "mux",
+        enabled: settings.mux_upload_enabled,
+        icon: "video",
+        labelKey: "provider.mux",
+        submitKey: "upload.mux",
+        handler: "muxUpload",
+      },
+    ];
   }
 
-  get youtubeEnabled() {
-    return settings.youtube_upload_enabled;
+  get enabledProviders() {
+    return this.providers.filter((provider) => provider.enabled);
   }
 
   get defaultProvider() {
-    if (this.youtubeEnabled && !this.vimeoEnabled) {
-      return "youtube";
-    }
-
-    if (this.vimeoEnabled && !this.youtubeEnabled) {
-      return "vimeo";
-    }
-
-    return null;
+    return this.enabledProviders.length === 1
+      ? this.enabledProviders[0].id
+      : null;
   }
 
   get providerSelectionEnabled() {
-    return this.youtubeEnabled && this.vimeoEnabled;
+    return this.enabledProviders.length > 1;
+  }
+
+  get selectedProviderConfig() {
+    return this.providers.find((p) => p.id === this.selectedProvider);
   }
 
   get submitIcon() {
-    if (this.selectedProvider === "youtube") {
-      return "fab-youtube";
-    }
-
-    return "fab-vimeo-v";
+    return this.selectedProviderConfig?.icon ?? "video";
   }
 
   get submitLabel() {
-    if (this.selectedProvider === "youtube") {
-      return i18n(themePrefix("upload.youtube"));
-    }
+    const key = this.selectedProviderConfig?.submitKey ?? "upload.video";
+    return i18n(themePrefix(key));
+  }
 
-    return i18n(themePrefix("upload.vimeo"));
+  get brokerOrigin() {
+    return settings.video_broker_origin?.trim();
   }
 
   @action
@@ -136,8 +176,65 @@ export default class VideoUpload extends Component {
   }
 
   @action
-  handleFilesSelected(files) {
-    this.validateVideoFile(files?.[0]);
+  async handleFilesSelected(files) {
+    const file = files?.[0];
+
+    if (!this.validateVideoFile(file)) {
+      return;
+    }
+
+    if (await this.exceedsMaxDuration(file)) {
+      this.formApi.set("video", null);
+      this.formApi.addError("video", {
+        title: i18n(themePrefix("upload.video")),
+        message: i18n(themePrefix("validation.video.too_long"), {
+          max: settings.max_duration_minutes,
+        }),
+      });
+    }
+  }
+
+  exceedsMaxSize(file) {
+    const maxMb = settings.max_upload_size_mb;
+    return maxMb > 0 && file.size > maxMb * 1024 * 1024;
+  }
+
+  durationExceedsLimit(durationSeconds) {
+    const maxMinutes = settings.max_duration_minutes;
+    return (
+      maxMinutes > 0 &&
+      durationSeconds != null &&
+      durationSeconds > maxMinutes * 60
+    );
+  }
+
+  readVideoDuration(file) {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.preload = "metadata";
+
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        resolve(Number.isFinite(video.duration) ? video.duration : null);
+      };
+
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+
+      video.src = url;
+    });
+  }
+
+  async exceedsMaxDuration(file) {
+    if (settings.max_duration_minutes <= 0) {
+      return false;
+    }
+
+    const duration = await this.readVideoDuration(file);
+    return this.durationExceedsLimit(duration);
   }
 
   @action
@@ -153,6 +250,18 @@ export default class VideoUpload extends Component {
       this.formApi.addError("video", {
         title: i18n(themePrefix("upload.video")),
         message: i18n(themePrefix("validation.video.invalid")),
+      });
+      return false;
+    }
+
+    if (this.exceedsMaxSize(file)) {
+      this.formApi.set("video", null);
+
+      this.formApi.addError("video", {
+        title: i18n(themePrefix("upload.video")),
+        message: i18n(themePrefix("validation.video.too_large"), {
+          max: settings.max_upload_size_mb,
+        }),
       });
       return false;
     }
@@ -184,6 +293,15 @@ export default class VideoUpload extends Component {
       addError("video", {
         title: i18n(themePrefix("upload.video")),
         message: i18n(themePrefix("validation.video.invalid")),
+      });
+    }
+
+    if (data.video && this.exceedsMaxSize(data.video)) {
+      addError("video", {
+        title: i18n(themePrefix("upload.video")),
+        message: i18n(themePrefix("validation.video.too_large"), {
+          max: settings.max_upload_size_mb,
+        }),
       });
     }
 
@@ -235,6 +353,7 @@ export default class VideoUpload extends Component {
     this.isProcessing = false;
     this.isPaused = false;
     this.uploadError = null;
+    this.embeddableUrl = null;
     this.a11y.announce(i18n(themePrefix("status.announce.uploading")));
   }
 
@@ -293,6 +412,10 @@ export default class VideoUpload extends Component {
     this.uploadError = null;
     this.cancelRequested = false;
     this.uploader = null;
+    this.embeddableUrl = null;
+    this.completed = false;
+    this.insertEarlyRequested = false;
+    this.insertEmbed = null;
     this.a11y.announce(i18n(themePrefix("status.announce.cancelled")));
   }
 
@@ -336,13 +459,19 @@ export default class VideoUpload extends Component {
 
   @action
   async handleSubmit(data) {
-    switch (data.provider) {
-      case "vimeo":
-        await this.vimeoUpload(data);
-        break;
-      case "youtube":
-        await this.youtubeUpload(data);
-        break;
+    if (data.video && (await this.exceedsMaxDuration(data.video))) {
+      this.formApi.addError("video", {
+        title: i18n(themePrefix("upload.video")),
+        message: i18n(themePrefix("validation.video.too_long"), {
+          max: settings.max_duration_minutes,
+        }),
+      });
+      return;
+    }
+
+    const config = this.providers.find((p) => p.id === data.provider);
+    if (config) {
+      await this[config.handler](data);
     }
   }
 
@@ -526,6 +655,130 @@ export default class VideoUpload extends Component {
   }
 
   @action
+  async cloudflareUpload(data) {
+    await this.brokerUpload(data, {
+      provider: "cloudflare_stream",
+      ClientClass: CloudflareStreamUploadClient,
+      metadata: buildCloudflareStreamMetadata(data),
+      insert: (url) =>
+        this.appEvents.trigger("composer:insert-block", `\n${url}\n`),
+    });
+  }
+
+  @action
+  async muxUpload(data) {
+    await this.brokerUpload(data, {
+      provider: "mux",
+      ClientClass: MuxUploadClient,
+      metadata: buildMuxMetadata(data),
+      insert: (url) =>
+        this.appEvents.trigger("composer:insert-block", `\n${url}\n`),
+    });
+  }
+
+  async brokerUpload(data, { provider, ClientClass, metadata, insert }) {
+    let uploader;
+    this.completed = false;
+    this.insertEarlyRequested = false;
+    this.insertEmbed = insert;
+    try {
+      this.isAuthing = true;
+      this.uploadError = null;
+
+      const token = await requestBrokerToken({
+        brokerOrigin: this.brokerOrigin,
+        shouldCancel: () => this.cancelRequested,
+      });
+
+      this.startUpload();
+
+      uploader = new ClientClass({
+        file: data.video,
+        token,
+        brokerOrigin: this.brokerOrigin,
+        metadata,
+        onProgress: (progressData) => this.updateProgress(progressData),
+      });
+      this.uploader = uploader;
+
+      if (this.cancelRequested) {
+        throw new CancelledError();
+      }
+
+      await uploader.upload();
+
+      if (this.cancelRequested) {
+        throw new CancelledError();
+      }
+
+      this.startProcessing();
+
+      const { timedOut, iframeUrl } = await uploader.waitForReady({
+        interval: STATUS_POLLING_INTERVAL_MILLIS,
+        timeout: this.processingTimeout,
+        shouldCancel: () => this.cancelRequested,
+        onEmbeddable: (url) => (this.embeddableUrl = url),
+        shouldInsertEarly: () => this.insertEarlyRequested,
+      });
+
+      this.finishProcessing();
+
+      // The "Insert now" button may have already inserted and closed.
+      if (this.completed) {
+        return;
+      }
+
+      if (timedOut) {
+        this.notifyStillProcessing(provider);
+      }
+
+      this.finishInsert(iframeUrl);
+    } catch (error) {
+      if (error?.cancelled) {
+        try {
+          await uploader?.deleteVideo();
+        } catch (deleteError) {
+          this.notifyDeleteFailed(provider, deleteError);
+        }
+        this.resetUpload();
+        return;
+      }
+      if (error?.status === 401) {
+        clearBrokerToken();
+      }
+      if (error?.cleanup) {
+        try {
+          await uploader?.deleteVideo();
+        } catch {}
+      }
+      this.failUpload(error);
+    } finally {
+      this.isAuthing = false;
+    }
+  }
+
+  finishInsert(url) {
+    if (this.completed) {
+      return;
+    }
+
+    this.completed = true;
+    this.insertEmbed?.(url);
+    this.closeUploadModal();
+  }
+
+  @action
+  insertNow() {
+    if (!this.embeddableUrl || this.completed) {
+      return;
+    }
+
+    this.insertEarlyRequested = true;
+    this.finishProcessing();
+    this.finishInsert(this.embeddableUrl);
+  }
+
+  @action
   closeUploadModal() {
     this.args?.closeModal();
   }
@@ -578,25 +831,17 @@ export default class VideoUpload extends Component {
                         as |conditional|
                       >
                         <conditional.Conditions as |Condition|>
-                          <Condition
-                            @name="youtube"
-                            @disabled={{this.uploadDisabled}}
-                          >
-                            {{#if (eq this.selectedProvider "youtube")}}
-                              {{icon "check"}}
-                            {{/if}}
-                            {{i18n (themePrefix "provider.youtube")}}
-                          </Condition>
-
-                          <Condition
-                            @name="vimeo"
-                            @disabled={{this.uploadDisabled}}
-                          >
-                            {{#if (eq this.selectedProvider "vimeo")}}
-                              {{icon "check"}}
-                            {{/if}}
-                            {{i18n (themePrefix "provider.vimeo")}}
-                          </Condition>
+                          {{#each this.enabledProviders as |provider|}}
+                            <Condition
+                              @name={{provider.id}}
+                              @disabled={{this.uploadDisabled}}
+                            >
+                              {{#if (eq this.selectedProvider provider.id)}}
+                                {{icon "check"}}
+                              {{/if}}
+                              {{i18n (themePrefix provider.labelKey)}}
+                            </Condition>
+                          {{/each}}
                         </conditional.Conditions>
                       </form.ConditionalContent>
                     </form.Container>
@@ -864,6 +1109,16 @@ export default class VideoUpload extends Component {
                   <span>{{i18n (themePrefix "status.transcoding")}}</span>
                   <div class="spinner" aria-hidden="true"></div>
                   <div class="video-upload-status__controls">
+                    {{#if this.embeddableUrl}}
+                      <DButton
+                        @action={{this.insertNow}}
+                        @icon="check"
+                        class="btn-small"
+                        @translatedLabel={{i18n
+                          (themePrefix "upload.insert_now")
+                        }}
+                      />
+                    {{/if}}
                     <DButton
                       @action={{this.cancelUpload}}
                       @icon="xmark"

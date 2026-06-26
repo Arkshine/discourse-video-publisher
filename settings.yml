@@ -41,6 +41,27 @@ youtube_default_view_privacy:
     - public
     - unlisted
 
+cloudflare_stream_upload_enabled:
+  default: false
+
+mux_upload_enabled:
+  default: false
+
+video_broker_origin:
+  default: ""
+
+max_upload_size_mb:
+  default: 0
+  type: integer
+  min: 0
+  max: 51200
+
+max_duration_minutes:
+  default: 0
+  type: integer
+  min: 0
+  max: 600
+
 processing_wait_timeout_minutes:
   default: 10
   type: integer
@@ -48,10 +69,10 @@ processing_wait_timeout_minutes:
   max: 600
 
 svg_icons:
-  default: "fab-youtube|fab-vimeo-v|video|upload"
+  default: "fab-youtube|fab-vimeo-v|fab-cloudflare|video|upload"
   type: "list"
   list_type: "compact"
 
 extend_content_security_policy:
   type: list
-  default: "script_src: https://accounts.google.com/gsi/client|connect_src: https://api.vimeo.com"
+  default: "script_src: https://accounts.google.com/gsi/client|connect_src: https://api.vimeo.com|connect_src: https://upload.videodelivery.net|connect_src: https://storage.googleapis.com|frame_src: https://iframe.videodelivery.net|frame_src: https://player.mux.com"

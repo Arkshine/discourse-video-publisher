@@ -1,6 +1,8 @@
 import { setupTest } from "ember-qunit";
 import { module, test } from "qunit";
 import ResumableUploadClient from "../../discourse/lib/upload-video/client";
+import CloudflareStreamUploadClient from "../../discourse/lib/upload-video/provider/cloudflare-stream";
+import MuxUploadClient from "../../discourse/lib/upload-video/provider/mux";
 import VimeoUploadClient from "../../discourse/lib/upload-video/provider/vimeo";
 import YouTubeUploadClient from "../../discourse/lib/upload-video/provider/youtube";
 import { CancelledError } from "../../discourse/lib/upload-video/util";
@@ -530,6 +532,287 @@ module("Unit | Lib | upload-video/provider/vimeo", function (hooks) {
       client.waitForTranscode(),
       /bad request/,
       "a genuine error still aborts"
+    );
+  });
+});
+
+module(
+  "Unit | Lib | upload-video/provider/cloudflare-stream",
+  function (hooks) {
+    setupTest(hooks);
+
+    function makeClient() {
+      return new CloudflareStreamUploadClient({
+        file: new Blob(["0123456789"]),
+        token: "broker-token",
+        brokerOrigin: "https://broker.test",
+        metadata: { title: "clip" },
+      });
+    }
+
+    test("getResult returns the iframe url", function (assert) {
+      const client = makeClient();
+      client.iframeUrl = "https://iframe.videodelivery.net/uid123";
+      assert.strictEqual(
+        client.getResult(),
+        "https://iframe.videodelivery.net/uid123"
+      );
+    });
+
+    test("waitForReady returns once the video is ready", async function (assert) {
+      const client = makeClient();
+      client.fetchStatus = async () => ({
+        ready: true,
+        status: "ready",
+        iframe_url: "https://iframe.videodelivery.net/uid123",
+      });
+
+      const result = await client.waitForReady();
+
+      assert.false(result.timedOut, "does not report a timeout");
+      assert.strictEqual(
+        result.iframeUrl,
+        "https://iframe.videodelivery.net/uid123"
+      );
+    });
+
+    test("waitForReady reports timedOut without throwing when processing is slow", async function (assert) {
+      const client = makeClient();
+      client.fetchStatus = async () => ({ ready: false, status: "inprogress" });
+
+      const result = await client.waitForReady({ timeout: -1 });
+
+      assert.true(result.timedOut, "reports the timeout instead of throwing");
+    });
+
+    test("waitForReady throws and flags cleanup on an error status", async function (assert) {
+      const client = makeClient();
+      client.fetchStatus = async () => ({ ready: false, status: "error" });
+
+      await assert.rejects(
+        client.waitForReady({ interval: 1 }),
+        (error) =>
+          /could not process this video/.test(error.message) &&
+          error.cleanup === true,
+        "an error status stops the wait and flags cleanup"
+      );
+    });
+
+    test("waitForReady throws CancelledError when cancelled", async function (assert) {
+      const client = makeClient();
+      client.fetchStatus = async () => ({ ready: false, status: "inprogress" });
+
+      await assert.rejects(
+        client.waitForReady({ shouldCancel: () => true }),
+        CancelledError
+      );
+    });
+
+    test("waitForReady inserts early while still processing", async function (assert) {
+      const client = makeClient();
+      client.iframeUrl = "https://iframe.videodelivery.net/uid123";
+      client.fetchStatus = async () => ({ ready: false, status: "inprogress" });
+
+      let announced = null;
+      const result = await client.waitForReady({
+        onEmbeddable: (url) => (announced = url),
+        shouldInsertEarly: () => true,
+      });
+
+      assert.false(result.timedOut, "does not report a timeout");
+      assert.strictEqual(
+        result.iframeUrl,
+        "https://iframe.videodelivery.net/uid123",
+        "returns the embed url before the video is ready"
+      );
+      assert.strictEqual(
+        announced,
+        "https://iframe.videodelivery.net/uid123",
+        "announces the embeddable url"
+      );
+    });
+
+    test("createUploadSession switches to simple mode for basic_post", async function (assert) {
+      const client = makeClient();
+      client.xhr = async () => ({
+        responseText: JSON.stringify({
+          upload_type: "basic_post",
+          upload_url: "https://upload.videodelivery.net/basic",
+          uid: "uid123",
+          status_url: "https://broker.test/videos/uid123",
+          iframe_url: "https://iframe.videodelivery.net/uid123",
+        }),
+      });
+
+      await client.createUploadSession();
+
+      assert.true(client.simpleMode, "flags basic_post as simple mode");
+      assert.strictEqual(client.uid, "uid123");
+      assert.strictEqual(
+        client.iframeUrl,
+        "https://iframe.videodelivery.net/uid123"
+      );
+    });
+
+    test("createUploadSession sets the tus upload url for tus mode", async function (assert) {
+      const client = makeClient();
+      client.xhr = async () => ({
+        responseText: JSON.stringify({
+          upload_type: "tus",
+          upload_url: "https://upload.videodelivery.net/tus/uid123",
+          uid: "uid123",
+          status_url: "https://broker.test/videos/uid123",
+          iframe_url: "https://iframe.videodelivery.net/uid123",
+        }),
+      });
+
+      await client.createUploadSession();
+
+      assert.false(client.simpleMode, "tus is not simple mode");
+      assert.strictEqual(
+        client.url,
+        "https://upload.videodelivery.net/tus/uid123"
+      );
+    });
+  }
+);
+
+module("Unit | Lib | upload-video/provider/mux", function (hooks) {
+  setupTest(hooks);
+
+  function makeClient() {
+    return new MuxUploadClient({
+      file: new Blob(["0123456789"]),
+      token: "broker-token",
+      brokerOrigin: "https://broker.test",
+      metadata: { title: "clip" },
+    });
+  }
+
+  test("treats 308 as a success status", function (assert) {
+    const client = makeClient();
+    assert.true(client.isSuccessStatus(308));
+    assert.true(client.isSuccessStatus(201));
+    assert.false(client.isSuccessStatus(500));
+  });
+
+  test("getUploadHeaders sets a Content-Range", function (assert) {
+    const client = makeClient();
+    const headers = client.getUploadHeaders(10);
+    assert.strictEqual(headers["Content-Range"], "bytes 0-9/10");
+  });
+
+  test("createUploadSession stores the GCS upload url and status url", async function (assert) {
+    const client = makeClient();
+    client.xhr = async () => ({
+      responseText: JSON.stringify({
+        upload_id: "up_1",
+        upload_url: "https://storage.googleapis.com/session",
+        status_url: "https://broker.test/mux/uploads/up_1",
+      }),
+    });
+
+    await client.createUploadSession();
+
+    assert.strictEqual(client.url, "https://storage.googleapis.com/session");
+    assert.strictEqual(client.uploadId, "up_1");
+    assert.strictEqual(
+      client.statusUrl,
+      "https://broker.test/mux/uploads/up_1"
+    );
+  });
+
+  test("createUploadSession throws when the upload url is missing", async function (assert) {
+    const client = makeClient();
+    client.xhr = async () => ({
+      responseText: JSON.stringify({ upload_id: "up_1" }),
+    });
+
+    await assert.rejects(
+      client.createUploadSession(),
+      (error) => error.translationKey === "errors.mux_upload_url_missing"
+    );
+  });
+
+  test("waitForReady returns the player url once ready", async function (assert) {
+    const client = makeClient();
+    client.fetchStatus = async () => ({
+      ready: true,
+      asset_status: "ready",
+      iframe_url: "https://player.mux.com/pb1",
+    });
+
+    const result = await client.waitForReady();
+
+    assert.false(result.timedOut);
+    assert.strictEqual(result.iframeUrl, "https://player.mux.com/pb1");
+  });
+
+  test("waitForReady reports timedOut without throwing when processing is slow", async function (assert) {
+    const client = makeClient();
+    client.fetchStatus = async () => ({
+      ready: false,
+      asset_status: "preparing",
+    });
+
+    const result = await client.waitForReady({ timeout: -1 });
+
+    assert.true(result.timedOut);
+  });
+
+  test("waitForReady throws and flags cleanup when the asset errors", async function (assert) {
+    const client = makeClient();
+    client.fetchStatus = async () => ({
+      ready: false,
+      asset_status: "errored",
+    });
+
+    await assert.rejects(
+      client.waitForReady({ interval: 1 }),
+      (error) =>
+        /could not process this video/.test(error.message) &&
+        error.cleanup === true
+    );
+  });
+
+  test("waitForReady throws CancelledError when cancelled", async function (assert) {
+    const client = makeClient();
+    client.fetchStatus = async () => ({
+      ready: false,
+      asset_status: "preparing",
+    });
+
+    await assert.rejects(
+      client.waitForReady({ shouldCancel: () => true }),
+      CancelledError
+    );
+  });
+
+  test("waitForReady inserts early once the player url is known", async function (assert) {
+    const client = makeClient();
+    client.fetchStatus = async () => ({
+      ready: false,
+      asset_status: "preparing",
+      iframe_url: "https://player.mux.com/pb1",
+    });
+
+    let announced = null;
+    const result = await client.waitForReady({
+      interval: 1,
+      onEmbeddable: (url) => (announced = url),
+      shouldInsertEarly: () => true,
+    });
+
+    assert.false(result.timedOut, "does not report a timeout");
+    assert.strictEqual(
+      result.iframeUrl,
+      "https://player.mux.com/pb1",
+      "returns the player url before the asset is ready"
+    );
+    assert.strictEqual(
+      announced,
+      "https://player.mux.com/pb1",
+      "announces the embeddable url once the asset is created"
     );
   });
 });

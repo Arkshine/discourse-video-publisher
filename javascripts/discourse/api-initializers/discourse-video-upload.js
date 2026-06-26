@@ -11,7 +11,12 @@ class VideoUploadInit {
   constructor(owner, api) {
     setOwner(this, owner);
 
-    if (settings.youtube_upload_enabled || settings.vimeo_upload_enabled) {
+    if (
+      settings.youtube_upload_enabled ||
+      settings.vimeo_upload_enabled ||
+      settings.cloudflare_stream_upload_enabled ||
+      settings.mux_upload_enabled
+    ) {
       api.onToolbarCreate((toolbar) => {
         toolbar.addButton({
           title: themePrefix("upload.video"),
@@ -48,6 +53,37 @@ export default {
   name: "discourse-video-upload",
 
   initialize(owner) {
+    // Handle video broker (Cloudflare Stream / Mux) auth callback
+    if (
+      settings.cloudflare_stream_upload_enabled ||
+      settings.mux_upload_enabled
+    ) {
+      const match = window.location.hash.match(/video-broker-code=([^&]+)/);
+      if (match) {
+        const code = decodeURIComponent(match[1]);
+
+        history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search
+        );
+
+        document.body.classList.add("video-broker-callback");
+
+        const overlay = document.createElement("div");
+        overlay.className = "video-broker-callback__overlay";
+        overlay.textContent = i18n(themePrefix("video_broker.authenticating"));
+        document.body.appendChild(overlay);
+
+        const channel = new BroadcastChannel("discourse-video-broker-auth");
+        channel.postMessage({ type: "video-broker-code", code });
+        channel.close();
+
+        window.close();
+        return;
+      }
+    }
+
     // Handle Vimeo OAuth callback
     if (settings.vimeo_oauth_client_id.trim()) {
       const { hash, search } = window.location;

@@ -1,7 +1,7 @@
-import ResumableUploadClient from "../client";
+import TusUploadClient from "../tus-client";
 import { CancelledError, sleep, UploadVideoError } from "../util";
 
-export default class VimeoUploadClient extends ResumableUploadClient {
+export default class VimeoUploadClient extends TusUploadClient {
   static defaults = {
     apiUrl: "https://api.vimeo.com",
     apiVersion: "3.4",
@@ -27,19 +27,6 @@ export default class VimeoUploadClient extends ResumableUploadClient {
 
   getDefaultBaseUrl() {
     return `${this.apiUrl}/me/videos`;
-  }
-
-  getUploadMethod() {
-    return "PATCH";
-  }
-
-  getUploadHeaders() {
-    return {
-      Accept: this.accept,
-      "Tus-Resumable": "1.0.0",
-      "Upload-Offset": String(this.offset),
-      "Content-Type": this.contentType,
-    };
   }
 
   async createUploadSession() {
@@ -78,55 +65,6 @@ export default class VimeoUploadClient extends ResumableUploadClient {
         "Missing Vimeo upload_link in response."
       );
     }
-  }
-
-  async resume() {
-    try {
-      const xhr = await this.xhr({
-        method: "HEAD",
-        url: this.url,
-        headers: {
-          Accept: this.accept,
-          "Tus-Resumable": "1.0.0",
-        },
-      });
-
-      const uploadOffset = xhr.getResponseHeader("Upload-Offset");
-      if (uploadOffset != null) {
-        this.offset = parseInt(uploadOffset, 10) || 0;
-      }
-
-      if (this.offset >= this.file.size) {
-        return;
-      }
-
-      return await this.sendFile();
-    } catch (error) {
-      return await this.handleUploadError(error);
-    }
-  }
-
-  async handleUploadSuccess(xhr) {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      this.resetRetry();
-
-      const uploadOffset = xhr.getResponseHeader("Upload-Offset");
-      if (uploadOffset != null) {
-        this.offset = parseInt(uploadOffset, 10) || 0;
-      }
-
-      if (this.offset < this.file.size) {
-        return await this.sendFile();
-      }
-
-      return;
-    }
-
-    throw this.makeXHRError(
-      xhr,
-      "Vimeo upload failed.",
-      "errors.vimeo_upload_failed"
-    );
   }
 
   async fetchStatus() {
